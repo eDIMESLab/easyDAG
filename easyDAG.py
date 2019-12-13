@@ -1,0 +1,247 @@
+import warnings
+import operator as op
+from copy import deepcopy    
+
+class PipeTypeWarning(UserWarning):
+    pass
+
+def do_eval(obj, **kwargs):
+    method = '__eval__'
+    if hasattr(obj, method):
+        if not isinstance(obj, RawStep):
+            s = "an object that is not a pipeline is getting evaluated"
+            warnings.warn(PipeTypeWarning(s))
+        eval_method = getattr(obj, method)
+        result = eval_method(**kwargs)
+        return result
+    return obj
+
+
+
+def are_equal(obj1, obj2):
+    method = '__equal__'
+    if not hasattr(obj1, method) or not hasattr(obj2, method):
+        return obj1==obj2
+    # implement the new class style defer of the check to the second object
+    # if it is a subclass of the first one
+    if issubclass(obj1.__class__, obj2.__class__):
+        return getattr(obj2, method)(obj1)
+    else:
+        return getattr(obj1, method)(obj2)
+
+
+
+# ███████ ████████ ███████ ██████       ██████ ██       █████  ███████ ███████
+# ██         ██    ██      ██   ██     ██      ██      ██   ██ ██      ██
+# ███████    ██    █████   ██████      ██      ██      ███████ ███████ ███████
+#      ██    ██    ██      ██          ██      ██      ██   ██      ██      ██
+# ███████    ██    ███████ ██           ██████ ███████ ██   ██ ███████ ███████
+
+_NO_PREVIOUS_RESULT = object()
+
+class RawStep:
+    def __init__(self, function, *args, **kwargs):
+        self._args = list(args)
+        self._kwargs = kwargs
+        self._function = function
+        self._is_singleton = False
+        self._last_result = _NO_PREVIOUS_RESULT
+
+    def __eval__(self, **kwargs):
+        if self._last_result is not _NO_PREVIOUS_RESULT:
+            return self._last_result
+        function = do_eval(self._function, **kwargs)
+        # if the function evaluates to a string (not a callable) then it represents a parameter!
+        if isinstance(function, str):
+            name = function
+            if name in kwargs:
+                self._last_result = kwargs[name]
+                return self._last_result
+            else:
+                # if the variable is not defined, return itself
+                # so that it allows to do currying of the function
+                return self
+        # if the result is not a string, then it should be a callable and used as a proper function
+        elif callable(function):
+            args_eval = [do_eval(arg, **kwargs) for arg in self._args]
+            kwargs_eval = {name: do_eval(arg, **kwargs)
+                            for name, arg in self._kwargs.items()}
+            # try to execute the function with the params, but don't freak out
+            try:
+                self._last_result = function(*args_eval, **kwargs_eval)
+            except Exception as e:
+                # fail gracefully, if there is an exception, return that
+                self._last_result = e
+            return self._last_result
+        # things that do not eval not strings or callable are not supported yet
+        else:
+            raise TypeError("the first parameter of the Step"\
+                            " should be evaluate to a string"\
+                            " or a callable, {} found".format(function))
+
+    def __equal__(self, other):
+        if self._is_singleton:
+            return self is other
+        same_function = are_equal(self._function, other._function)
+        same_args = all(are_equal(a1, a2) for a1, a2 in zip(self._args, other._args))
+        same_keys = all(are_equal(k1, k2) for k1, k2 in zip(self._kwargs.keys(), other._kwargs.keys()))
+        same_vals = all(are_equal(v1, v2) for v1, v2 in zip(self._kwargs.values(), other._kwargs.values()))
+        return all([same_function, same_args, same_keys, same_vals])
+
+    def __repr__(self):
+        s = "{}({}{}{})"
+        cls_str = self.__class__.__qualname__
+        f_str = repr(self._function)
+        arg_str = ''
+        if len(self._args):
+            arg_str = ', ' + ", ".join(repr(a) for a in self._args)
+        kwarg_str = ''
+        if len(self._kwargs):
+            elements = (f"{k}={repr(v)}" for k, v in self._kwargs.items())
+            kwarg_str = ', ' + ", ".join(elements)
+        return s.format(cls_str, f_str, arg_str, kwarg_str)
+    
+    def __copy__(self):
+        return self.__class__(self._function, *(self._args), **(self._kwargs))
+
+    def __deepcopy__(self, memo=None):
+        f = deepcopy(self._function)
+        a = deepcopy(self._args)
+        k = deepcopy(self._kwargs)
+        return self.__class__(f, *a, **k)
+        
+        
+
+
+class Step(RawStep):
+    #  ██████  ██████       ██ ███████  ██████ ████████     ██ ███    ██ ████████ ███████ ██████  ███████  █████   ██████ ███████
+    # ██    ██ ██   ██      ██ ██      ██         ██        ██ ████   ██    ██    ██      ██   ██ ██      ██   ██ ██      ██
+    # ██    ██ ██████       ██ █████   ██         ██        ██ ██ ██  ██    ██    █████   ██████  █████   ███████ ██      █████
+    # ██    ██ ██   ██ ██   ██ ██      ██         ██        ██ ██  ██ ██    ██    ██      ██   ██ ██      ██   ██ ██      ██
+    #  ██████  ██████   █████  ███████  ██████    ██        ██ ██   ████    ██    ███████ ██   ██ ██      ██   ██  ██████ ███████
+
+    def __getattr__(self, name):
+        return self.__class__(getattr, self, name)
+
+    def __call__(self, *args, **kwargs):
+        return self.__class__(self, *args, **kwargs)
+
+    def __getitem__(self, keyname):
+        return self.__class__(op.getitem, self, keyname)
+
+    #  ██████  █████  ███████
+    # ██      ██   ██ ██
+    # ██      ███████ ███████
+    # ██      ██   ██      ██
+    #  ██████ ██   ██ ███████
+
+    # most of these are just an indirect call to the operator module functions
+    # can't shortcut the reverse call because I can't assume that in general
+    # the results are simmetric (such as sum between strings)
+
+    def __eq__(self, other):
+        return self.__class__(op.eq, self, other)
+
+    def __ne__(self, other):
+        return self.__class__(op.ne, self, other)
+
+    def __add__(self, other):
+        return self.__class__(op.add, self, other)
+
+    def __radd__(self, other):
+        return self.__class__(op.add, other, self)
+
+    def __mul__(self, other):
+        return self.__class__(op.mul, self, other)
+
+    def __rmul__(self, other):
+        return self.__class__(op.mul, other, self)
+
+    def __pow__(self, other):
+        return self.__class__(op.pow, self, other)
+
+    def __rpow__(self, other):
+        return self.__class__(op.pow, other, self)
+    
+    def __truediv__(self, other):
+        return self.__class__(op.truediv, self, other)
+    
+    def __rtruediv__(self, other):
+        return self.__class__(op.truediv, other, self)
+
+
+def InputVariable(name, **kwargs):
+    return Step(name, **kwargs)
+
+def Singleton(name, **kwargs):
+    result = Step(name, **kwargs)
+    result._is_singleton = True
+    return result
+
+
+# ██████  ██ ██████  ███████ ██      ██ ███    ██ ███████
+# ██   ██ ██ ██   ██ ██      ██      ██ ████   ██ ██
+# ██████  ██ ██████  █████   ██      ██ ██ ██  ██ █████
+# ██      ██ ██      ██      ██      ██ ██  ██ ██ ██
+# ██      ██ ██      ███████ ███████ ██ ██   ████ ███████
+
+
+# ███████ ██   ██ ████████ ██████   █████   ██████ ████████ ██  ██████  ███    ██
+# ██       ██ ██     ██    ██   ██ ██   ██ ██         ██    ██ ██    ██ ████   ██
+# █████     ███      ██    ██████  ███████ ██         ██    ██ ██    ██ ██ ██  ██
+# ██       ██ ██     ██    ██   ██ ██   ██ ██         ██    ██ ██    ██ ██  ██ ██
+# ███████ ██   ██    ██    ██   ██ ██   ██  ██████    ██    ██  ██████  ██   ████
+
+
+def process(expr, cls=dict):
+    """transform the DAG in a dict of dicts"""
+    if isinstance(expr, Step):
+        elements = cls()
+        elements['$function$'] = process(expr._function, cls=cls)
+        for i, a in enumerate(expr._args):
+            elements[i] = process(a, cls=cls)
+        for k, v in  expr._kwargs.items():
+            elements[k] = process(v, cls=cls)
+        return elements
+    else:
+        return expr
+
+
+def unroll(step, base=None):
+    """return the adjacency list of the DAG from the starting node"""
+    if isinstance(step, RawStep):
+        yield (step, base)
+        yield from unroll(step._function, step)
+        for a in step._args:
+            yield from unroll(a, step)
+        for v in step._kwargs.values():
+            yield from unroll(v, step)
+
+
+def reset_computation(*dags):
+    """reset the computed value for all the nodes in the DAG"""
+    for dag in dags:
+        for step, parent in unroll(dag):
+            step._last_result = _NO_PREVIOUS_RESULT
+    return dags
+
+def get_free_variables(step):
+    """given the DAG, search for all the free variables"""
+    results = [s for s, *t in unroll(step) if isinstance(s._function, str)]
+    
+    reduced = []
+    for element in results:
+        for e in reduced:
+            if are_equal(element, e):
+                break
+        else:
+            reduced.append(element)
+            
+    return reduced
+        
+def find_elements(obj, results):
+    """given the adjacency list of the DAG, return the positions of OBJ"""
+    for idx, el in enumerate(results):
+        (element, *tail) = el
+        if are_equal(obj, element):
+            yield idx
