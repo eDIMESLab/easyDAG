@@ -29,18 +29,8 @@ VERSION_FILENAME = os.path.join(here, 'easyDAG', '__version__.py')
 
 LONG_DESCRIPTION = DESCRIPTION
 
-
-# Load the package's __version__.py module as a dictionary.
-about = {}
-if not VERSION:
-  with open(VERSION_FILENAME) as fp:
-    exec(fp.read(), about)
-
-else:
-  about['__version__'] = VERSION
-
 # parse version variables and add them to command line as definitions
-Version = about['__version__'].split('.')
+Version = (0, 1, 0)
 
 
 setup(

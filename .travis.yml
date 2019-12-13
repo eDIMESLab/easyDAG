@@ -55,6 +55,8 @@ matrix:
 
 before_install:
   - travis_retry eval "${MATRIX_EVAL}"
+  - pip install pandas
+  - pip install sklearn
 
 install:
   - python setup.py install
