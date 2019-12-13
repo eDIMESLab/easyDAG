@@ -20,7 +20,7 @@ URL = 'https://github.com/eDIMESLab/easyDAG'
 EMAIL = ['enrico.giampieri@unibo.it', 'nico.curti2@unibo.it']
 AUTHOR = ['Enrico Giampieri', 'Nico Curti']
 REQUIRES_PYTHON = '>=3.4'
-VERSION = None
+VERSION =  "0.1.0"
 KEYWORDS = 'DAG'
 
 README_FILENAME = os.path.join(here, 'README.md')
@@ -30,12 +30,11 @@ VERSION_FILENAME = os.path.join(here, 'easyDAG', '__version__.py')
 LONG_DESCRIPTION = DESCRIPTION
 
 # parse version variables and add them to command line as definitions
-Version = (0, 1, 0)
 
 
 setup(
   name                          = NAME,
-  version                       = about['__version__'],
+  version                       = VERSION,
   description                   = DESCRIPTION,
   long_description              = LONG_DESCRIPTION,
   long_description_content_type = 'text/markdown',
