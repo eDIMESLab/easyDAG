@@ -404,3 +404,14 @@ def test_deepcopy_cache_no_interaction():
     assert c._last_result is res
 
 
+class Useless(Step):
+    def __equal__(self, other):
+        return True
+    
+a = InputVariable("a")
+b = Useless('b')
+
+are_equal(a, b) == True
+
+issubclass(a.__class__, b.__class__)
+issubclass(b.__class__, a.__class__)

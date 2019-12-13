@@ -1,6 +1,6 @@
 import warnings
 import operator as op
-from copy import deepcopy    
+from copy import deepcopy
 
 class PipeTypeWarning(UserWarning):
     pass
@@ -221,7 +221,7 @@ def unroll(step, base=None):
 def reset_computation(*dags):
     """reset the computed value for all the nodes in the DAG"""
     for dag in dags:
-        for step, parent in unroll(dag):
+        for step, _ in unroll(dag):
             step._last_result = _NO_PREVIOUS_RESULT
     return dags
 
@@ -236,12 +236,11 @@ def get_free_variables(step):
                 break
         else:
             reduced.append(element)
-            
     return reduced
-        
+
 def find_elements(obj, results):
     """given the adjacency list of the DAG, return the positions of OBJ"""
     for idx, el in enumerate(results):
-        (element, *tail) = el
+        (element, *_) = el
         if are_equal(obj, element):
             yield idx
