@@ -1,4 +1,4 @@
-
+# python -m pytest --cov=easyDAG
 from easyDAG import Step
 from easyDAG import InputVariable, Singleton
 from easyDAG import do_eval, are_equal
