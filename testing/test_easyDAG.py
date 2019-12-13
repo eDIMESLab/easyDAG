@@ -3,13 +3,16 @@ from easyDAG import Step
 from easyDAG import InputVariable, Singleton
 from easyDAG import do_eval, are_equal
 from easyDAG import unroll, reset_computation
-from easyDAG import find_elements, get_free_variables
+from easyDAG import find_elements, get_free_variables, process
 from easyDAG.easyDAG import _NO_PREVIOUS_RESULT
 
 # %%
 from functools import partial, reduce
 import operator as op
-from copy import deepcopy 
+from copy import deepcopy, copy
+# %%
+import pytest
+
 # %%
 
 Sum = partial(Step, lambda *args: sum(args))
@@ -145,7 +148,6 @@ def test_equalities():
     assert do_eval(a != b+1, a=2, b=2) == True
 
 def test_warn_extraneous_classes():
-    import pytest
     class Pippo:
         def __eval__(self, *args, **kwargs):
             return 1
@@ -378,7 +380,11 @@ def test_find_subtrees():
     r = (a*b)*d + c*(a*b)
     
     adj_list = list(unroll(r))
+    res = list(find_elements(a*b, adj_list))
+    assert len(res)==2
     
+    r2 = Step((lambda x, y: x+y), x=(a*b)*d, y=c*(a*b))
+    adj_list = list(unroll(r2))
     res = list(find_elements(a*b, adj_list))
     assert len(res)==2
     
@@ -404,14 +410,106 @@ def test_deepcopy_cache_no_interaction():
     assert c._last_result is res
 
 
-class Useless(Step):
-    def __equal__(self, other):
-        return True
+def test_deferred_equality_to_subclass():
+    class Useless(Step):
+        def __equal__(self, other):
+            return True
+        
+    a = InputVariable("a")
+    b = Useless('b')
     
-a = InputVariable("a")
-b = Useless('b')
+    assert are_equal(a, b) == True
+    assert are_equal(b, a) == True
+    
 
-are_equal(a, b) == True
+def test_error_unclear_function_type():
+    a = InputVariable('a')
+    b = Step(a, 1, 2)
+    with pytest.raises(TypeError):
+        do_eval(b, a=4)
 
-issubclass(a.__class__, b.__class__)
-issubclass(b.__class__, a.__class__)
+
+def test_dynamic_variable_generation_surprising():
+    """this is a weird one but logically correct
+    during evaluation, given that "a" is replaced by a string,
+    b becomes a variable and thus the result of the evaluation
+    is a new pipeline.
+    once that pipeline is evluated, the result is just the function,
+    as the parameters of the inputvariables are not used.
+    one can also do everything in one step to male it weirder.
+    """
+    a = InputVariable('a')
+    b= Step(a, 1, 2)
+    res = do_eval(b, a="adios", adios=op.add)
+    assert res(1, 2) == 3
+    
+    a = InputVariable('a')
+    b= Step(a, 1, 2)
+    partial_dag = do_eval(b, a="adios")
+    res = do_eval(partial_dag, adios=op.add)
+    assert res(1, 2) == 3
+
+
+def test_basic_copy_shallow_and_deep():
+    b = InputVariable('b')
+    a = InputVariable('a', meta=b)
+    a1 = copy(a)
+    a2 = deepcopy(a)
+    assert are_equal(a, a1)
+    assert are_equal(a, a2)
+    assert a._kwargs['meta'] is a1._kwargs['meta'] 
+    assert a._kwargs['meta'] is not a2._kwargs['meta'] 
+    assert are_equal(a._kwargs['meta'], a2._kwargs['meta'])
+
+def test_equality_independent_key_ordering():
+    a1 = InputVariable('a', meta=1, type=int)
+    a2 = InputVariable('a', meta=1, type=int)
+    a3 = InputVariable('a', type=int, meta=1)
+    assert are_equal(a1, a2)
+    assert are_equal(a1, a3)
+
+def test_equality_need_same_keys():
+    a1 = InputVariable('a', meta=1, type=int)
+    a4 = InputVariable('a', meta=1, type=int, time=0)
+    assert not are_equal(a1, a4)
+    
+def test_equality_values():
+    a1 = InputVariable('a', meta=1, type=int)
+    a2 = InputVariable('a', meta=2, type=float)
+    assert not are_equal(a1, a2)
+
+def test_dag_processing_into_dict():
+    a = InputVariable('a')
+    assert process(a) == {'$function$': 'a'}
+    b = a+2
+    assert process(b) == {'$function$': op.add,
+                          0: {'$function$': 'a'},
+                          1: 2}
+    c = Step("random", a=1, b=2)
+    process(c) == {'$function$': 'random', 
+                   'a': 1, 
+                   'b': 2}
+
+def test_get_free_variables():
+    a = InputVariable('a')
+    b = InputVariable('b')
+    c = InputVariable('c')
+    
+    expr = a*c + c*b + a*2 +5
+    free_vars = get_free_variables(expr)
+    assert len(free_vars) == 3
+
+# CAS TESTING
+def test_rpow():
+    a = InputVariable('a')
+    res = do_eval(2**a, a=3)
+    assert res == 8
+    
+def test_truediv():
+    a = InputVariable('a')
+    res = do_eval(a/2, a=8)
+    assert res == 4
+
+def test_repr():
+    a = Step('a', 1, b=2)
+    assert repr(a) == "Step('a', 1, b=2)"

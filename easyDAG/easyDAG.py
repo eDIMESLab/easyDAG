@@ -24,7 +24,7 @@ def are_equal(obj1, obj2):
         return obj1==obj2
     # implement the new class style defer of the check to the second object
     # if it is a subclass of the first one
-    if issubclass(obj1.__class__, obj2.__class__):
+    if issubclass(obj2.__class__, obj1.__class__):
         return getattr(obj2, method)(obj1)
     else:
         return getattr(obj1, method)(obj2)
@@ -83,10 +83,25 @@ class RawStep:
         if self._is_singleton:
             return self is other
         same_function = are_equal(self._function, other._function)
+        if not same_function:
+            return False
         same_args = all(are_equal(a1, a2) for a1, a2 in zip(self._args, other._args))
-        same_keys = all(are_equal(k1, k2) for k1, k2 in zip(self._kwargs.keys(), other._kwargs.keys()))
-        same_vals = all(are_equal(v1, v2) for v1, v2 in zip(self._kwargs.values(), other._kwargs.values()))
-        return all([same_function, same_args, same_keys, same_vals])
+        if not same_args:
+            return False
+        # keys might be in different order!
+        # keys are simple strings, don't need to be parsed
+        self_keys = set(self._kwargs.keys())
+        other_keys = set(other._kwargs.keys())
+        same_keys = self_keys == other_keys
+        if not same_keys:
+            return False
+        # values need to be parsed, and in the same order
+        self_val = [self._kwargs[k] for k in self_keys]
+        other_val = [other._kwargs[k] for k in self_keys]
+        same_vals = all(are_equal(v1, v2) for v1, v2 in zip(self_val, other_val))
+        if not same_vals:
+            return False
+        return True
 
     def __repr__(self):
         s = "{}({}{}{})"
