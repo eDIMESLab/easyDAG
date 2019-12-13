@@ -4,5 +4,8 @@
 |:------------:|:-----------:|:-----------------------------------------------------------------------------------:|:-----------------------------:|
 |   [**E. Giampieri**](https://github.com/EnricoGiampieri) <br/> [**N. Curti**](https://github.com/Nico-Curti)   |  **easyDAG**  | [![docs](https://img.shields.io/badge/documentation-latest-blue.svg?style=plastic)](https://github.com/eDIMESLab/easyDAG) | **Linux/MacOS** : [![travis](https://travis-ci.org/eDIMESLab/easyDAG.svg?branch=master)](https://travis-ci.org/eDIMESLab/easyDAG.svg?branch=master)|
 
+codacy code quality:
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/6a0933d115c946c388e6db8e1548d731)](https://www.codacy.com/gh/eDIMESLab/easyDAG?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=eDIMESLab/easyDAG&amp;utm_campaign=Badge_Grade)
 
-[![codacy](https://www.codacy.com/gh/eDIMESLab/easyDAG?utm_source=github.com&utm_medium=referral&utm_content=eDIMESLab/easyDAG&utm_campaign=Badge_Grade_Dashboard)(https://www.codacy.com/gh/eDIMESLab/easyDAG?utm_source=github.com&utm_medium=referral&utm_content=eDIMESLab/easyDAG&utm_campaign=Badge_Grade_Dashboard)
+codecov test code coverage:
+[![codecov](https://codecov.io/gh/eDIMESLab/easyDAG/branch/master/graph/badge.svg)](https://codecov.io/gh/eDIMESLab/easyDAG)
