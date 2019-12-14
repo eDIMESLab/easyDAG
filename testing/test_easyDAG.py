@@ -1,7 +1,7 @@
 # python -m pytest --cov=easyDAG
 from easyDAG import Step
 from easyDAG import InputVariable, Singleton
-from easyDAG import do_eval, are_equal
+from easyDAG import do_eval, are_equal, do_eval_uncached
 from easyDAG import unroll, reset_computation
 from easyDAG import find_elements, get_free_variables, process
 from easyDAG.easyDAG import _NO_PREVIOUS_RESULT
@@ -513,3 +513,10 @@ def test_truediv():
 def test_repr():
     a = Step('a', 1, b=2)
     assert repr(a) == "Step('a', 1, b=2)"
+
+def test_eval_uncached():
+    a = InputVariable('a')
+    expr = 1 + 2*a
+    assert do_eval_uncached(expr, a=2) == 5
+    assert do_eval_uncached(expr, a=3) == 7
+    

@@ -16,6 +16,9 @@ def do_eval(obj, **kwargs):
         return result
     return obj
 
+def do_eval_uncached(dag, **kwargs):
+    dag = deepcopy(dag)
+    return do_eval(dag, **kwargs)
 
 
 def are_equal(obj1, obj2):
