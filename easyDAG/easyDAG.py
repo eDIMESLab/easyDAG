@@ -372,3 +372,16 @@ def find_elements(obj, results):
         (element, *_) = el
         if are_equal(obj, element):
             yield idx
+
+def replace_in_DAG(dag, to_find, to_replace):
+    if not isinstance(dag, RawStep):
+        return dag
+    if are_equal(dag, to_find):
+        return to_replace
+    dag._function = replace_in_DAG(dag._function, to_find, to_replace)
+    dag._args = [replace_in_DAG(a, to_find, to_replace) 
+                 for a in dag._args]
+    dag._kwargs = {k:replace_in_DAG(v, to_find, to_replace) 
+                   for k, v in dag._kwargs.items()}
+    return dag
+

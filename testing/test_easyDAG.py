@@ -2,7 +2,7 @@
 from easyDAG import Step
 from easyDAG import InputVariable, Tokens
 from easyDAG import do_eval, are_equal, do_eval_uncached
-from easyDAG import unroll, reset_computation
+from easyDAG import unroll, reset_computation, replace_in_DAG
 from easyDAG import find_elements, get_free_variables, to_dict, from_dict
 from easyDAG.easyDAG import _NO_PREVIOUS_RESULT
 
@@ -439,6 +439,15 @@ def test_get_free_variables(a, b, c):
     expr = a*c + c*b + a*2 +5
     free_vars = get_free_variables(expr)
     assert len(free_vars) == 3
+
+def test_replace_in_dag():
+    a = InputVariable('a')
+    b = InputVariable('b')
+    expr1 = 2**a + a*2 + 1
+    expr2 = replace_in_DAG(deepcopy(expr1), a, b)
+    res1 = do_eval(expr1, a=1, b=2)
+    res2 = do_eval(expr2, a=2, b=1)
+    assert are_equal(res1, res2)    
 
 
 def test_repr():
