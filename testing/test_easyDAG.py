@@ -467,28 +467,90 @@ def test_eval_uncached(a):
     assert do_eval_uncached(expr, a=2) == 5
     assert do_eval_uncached(expr, a=3) == 7
     
-
-
 # CAS TESTING
 
 def test_CAS_rpow(a):
-    res = do_eval(2**a, a=3)
-    assert res == 8
+    assert do_eval(2**a, a=3) == 8
     
 def test_CAS_truediv(a):
-    res = do_eval(a/2, a=8)
-    assert res == 4
+    assert do_eval(a/2, a=8) == 4
     
 def test_CAS_abs(a):
-    b = abs(a)
-    res = do_eval(b, a=-2)
-    assert res == 2
+    assert do_eval(abs(a), a=-2) == 2
 
 def test_CAS_pos(a):
-    assert do_eval(+a, a=2) == 2
+    assert do_eval(+a, a=-2) == +(-2)
 
 def test_CAS_neg(a):
     assert do_eval(-a, a=2) == -2
     
 def test_CAS_invert(a):
     assert do_eval(~a, a=2) == ~2
+    
+def test_CAS_sub(a):
+    assert do_eval(a-2, a=3) == 1
+
+def test_CAS_rsub(a):
+    assert do_eval(3-a, a=3) == 0
+    
+def test_CAS_and(a):
+    assert do_eval(a & True, a=False) == False
+    
+def test_CAS_or(a):
+    assert do_eval(a | True, a=False) == True
+    
+def test_CAS_rand(a):
+    assert do_eval(True & a, a=False) == False
+    
+def test_CAS_ror(a):
+    assert do_eval(True | a, a=False) == True
+    
+def test_CAS_xor(a):
+    assert do_eval(a ^ True, a=False) == True
+  
+def test_CAS_rxor(a):
+    assert do_eval(True ^ a, a=False) == True
+    
+def test_CAS_floordiv(a):
+    assert do_eval(a //2, a=5) == 2
+  
+def test_CAS_rfloordiv(a):
+    assert do_eval(5//a, a=2) == 2
+    
+def test_CAS_rshift(a):
+    assert do_eval(a >>2, a=5) == (5>>2)
+  
+def test_CAS_rrshift(a):
+    assert do_eval(2>>a, a=3) == (2>>3) 
+    
+def test_CAS_lshift(a):
+    assert do_eval(a <<2, a=5) == (5<<2)
+  
+def test_CAS_rlshift(a):
+    assert do_eval(2<<a, a=3) == (2<<3) 
+    
+def test_CAS_mod(a):
+    assert do_eval(a %2, a=5) == 1
+  
+def test_CAS_rmod(a):
+    assert do_eval(5%a, a=2) == 1
+    
+def test_matmul(a):
+    from numpy import array as ar
+    assert do_eval(a@ar([1, 2]), a=ar([1, 2])) == 5
+
+def test_rmatmul(a):
+    """given that numpy implements the matmul operation but does not
+    conceive that they might not know how to handle it, it can't be the
+    first object, need a trick to test the interface"""
+    from numpy import array as ar
+    assert do_eval([1, 2]@a, a=ar([1, 2])) == 5
+    
+    
+def test_CAS_disequalities(a):
+    assert do_eval_uncached(a>5, a=6)
+    assert do_eval_uncached(a>=5, a=6)
+    assert do_eval_uncached(a<8, a=6)
+    assert do_eval_uncached(a<=8, a=6)
+
+

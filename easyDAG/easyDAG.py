@@ -168,6 +168,12 @@ class Step(RawStep):
 
     def __radd__(self, other):
         return self.__class__(op.add, other, self)
+    
+    def __sub__(self, other):
+        return self.__class__(op.sub, self, other)
+    
+    def __rsub__(self, other):
+        return self.__class__(op.sub, other, self)
 
     def __mul__(self, other):
         return self.__class__(op.mul, self, other)
@@ -199,24 +205,67 @@ class Step(RawStep):
     def __invert__(self):
         return self.__class__(op.invert, self)
     
+    def __and__(self, other):
+        return self.__class__(op.__and__, self, other)
     
-
-
-# -                  object.__sub__(self, other)
-# //                 object.__floordiv__(self, other)
-# %                  object.__mod__(self, other)
-# <<                 object.__lshift__(self, other)
-# >>                 object.__rshift__(self, other)
-# &                  object.__and__(self, other)
-# ^                  object.__xor__(self, other)
-# |                  object.__or__(self, other)
-        
-# <                 object.__lt__(self, other)
-# <=                object.__le__(self, other)
-# >=                object.__ge__(self, other)
-# >                 object.__gt__(self, other)    
+    def __rand__(self, other):
+        return self.__class__(op.__and__, other, self)
     
-#~                 object.__invert__(self)
+    def __or__(self, other):
+        return self.__class__(op.__or__, self, other)
+    
+    def __ror__(self, other):
+        return self.__class__(op.__or__, other, self)
+    
+    def __lt__(self, other):
+        return self.__class__(op.lt, self, other)
+    
+    def __le__(self, other):
+        return self.__class__(op.le, self, other)
+    
+    def __gt__(self, other):
+        return self.__class__(op.gt, self, other)
+    
+    def __ge__(self, other):
+        return self.__class__(op.ge, self, other)
+    
+    def __floordiv__(self, other):
+        return self.__class__(op.floordiv, self, other)
+    
+    def __rfloordiv__(self, other):
+        return self.__class__(op.floordiv, other, self)
+    
+    def __mod__(self, other):
+        return self.__class__(op.mod, self, other)
+    
+    def __rmod__(self, other):
+        return self.__class__(op.mod, other, self)
+    
+    def __lshift__(self, other):
+        return self.__class__(op.lshift, self, other)
+    
+    def __rlshift__(self, other):
+        return self.__class__(op.lshift, other, self)
+    
+    def __rshift__(self, other):
+        return self.__class__(op.rshift, self, other)
+    
+    def __rrshift__(self, other):
+        return self.__class__(op.rshift, other, self)
+    
+    def __xor__(self, other):
+        return self.__class__(op.xor, self, other)
+    
+    def __rxor__(self, other):
+        return self.__class__(op.xor, other, self)
+    
+    def __matmul__(self, other):
+        return self.__class__(op.matmul, self, other)
+    
+    def __rmatmul__(self, other):
+        return self.__class__(op.matmul, other, self)
+
+#bool()            object.__bool__(self) 
 #complex()         object.__complex__(self)
 #int()             object.__int__(self)
 #long()            object.__long__(self)
