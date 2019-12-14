@@ -32,8 +32,6 @@ matrix:
 before_install:
   - travis_retry eval "${MATRIX_EVAL}"
   - pip install pytest pytest-cov
-  - pip install pandas
-  - pip install sklearn
   - pip install codecov
 
 install:

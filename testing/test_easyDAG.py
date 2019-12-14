@@ -245,65 +245,6 @@ def test_returning_function():
     do_math = Step(make_pow, b)
     assert do_eval(do_math, base=2, power=3, non_used=4) == 9
 
-def test_sklearn_1():
-    from sklearn.ensemble import RandomForestClassifier
-    import numpy as np
-    X = [[ 1,  2,  3], [11, 12, 13]]
-    y = [0, 1]  # classes of each sample
-    X2 = [[4, 5, 6], [14, 15, 16]]
-
-    x1_v = InputVariable('X')
-    x2_v = InputVariable('X_new')
-    y_v = InputVariable('y')
-
-    make_rfc = Step(RandomForestClassifier, random_state=0, n_estimators=10)
-    fitted_clf = make_rfc.fit(X=x1_v, y=y_v)
-    predict = fitted_clf.predict(X=x2_v)
-    result = do_eval(predict, X=X, X_new=X2, y=y)
-
-    clf_2 = RandomForestClassifier(random_state=0, n_estimators=10)
-    assert np.all(result == clf_2.fit(X, y).predict(X2))
-
-    make_rfc = Step(RandomForestClassifier, random_state=0, n_estimators=10)
-    fitted_clf = make_rfc.fit(x1_v, y_v)
-    predict = fitted_clf.predict(x2_v)
-    result = do_eval(predict, X=X, X_new=X2, y=y)
-
-    clf_2 = RandomForestClassifier(random_state=0, n_estimators=10)
-    assert np.all(result == clf_2.fit(X, y).predict(X2))
-
-def test_pandas_merge_simple(a, b):
-    import pandas as pd
-    left = pd.DataFrame({'key': ['K0', 'K1', 'K2', 'K3'],
-                         'A': ['A0', 'A1', 'A2', 'A3'],
-                         'B': ['B0', 'B1', 'B2', 'B3']})
-
-    right = pd.DataFrame({'key': ['K0', 'K1', 'K2', 'K3'],
-                          'C': ['C0', 'C1', 'C2', 'C3'],
-                          'D': ['D0', 'D1', 'D2', 'D3']})
-
-    result = pd.merge(left, right, on='key')
-    cas_result = Step(pd.merge, a, b, on='key')
-    result_post = do_eval(cas_result, a=left, b=right)
-    assert (result == result_post).all().all()
-
-def test_pandas_merge_multiple_dynamic_keys(a, b, c):
-    import pandas as pd
-    left = pd.DataFrame({'key1': ['K0', 'K0', 'K1', 'K2'],
-                        'key2': ['K0', 'K1', 'K0', 'K1'],
-                        'A': ['A0', 'A1', 'A2', 'A3'],
-                        'B': ['B0', 'B1', 'B2', 'B3']})
-
-    right = pd.DataFrame({'key1': ['K0', 'K1', 'K1', 'K2'],
-                         'key2': ['K0', 'K0', 'K0', 'K0'],
-                         'C': ['C0', 'C1', 'C2', 'C3'],
-                         'D': ['D0', 'D1', 'D2', 'D3']})
-
-    result = pd.merge(left, right, how='left', on=['key1', 'key2'])
-    cas_result = Step(pd.merge, a, b, how='left', on=c)
-    result_post = do_eval(cas_result, a=left, b=right, c=['key1', 'key2'])
-    assert (result.fillna(0) == result_post.fillna(0)).all().all()
-
 def test_unorthodox_variable_names():
     data = {'a': 1, '--b--': 2}
     a = InputVariable('a')
@@ -389,6 +330,12 @@ def test_error_unclear_function_type():
     b = Step(a, 1, 2)
     with pytest.raises(TypeError):
         do_eval(b, a=4)
+
+def test_fluent_interface():
+    a = InputVariable('a')
+    expr = a.replace("hello", "ciao").replace("world", "mondo")
+    res = do_eval(expr, a='hello world!')
+    assert res == "ciao mondo!"
 
 
 def test_dynamic_variable_generation_surprising():
@@ -535,18 +482,27 @@ def test_CAS_mod(a):
 def test_CAS_rmod(a):
     assert do_eval(5%a, a=2) == 1
     
-def test_matmul(a):
-    from numpy import array as ar
-    assert do_eval(a@ar([1, 2]), a=ar([1, 2])) == 5
-
-def test_rmatmul(a):
+def test_matmul():
     """given that numpy implements the matmul operation but does not
     conceive that they might not know how to handle it, it can't be the
     first object, need a trick to test the interface"""
-    from numpy import array as ar
-    assert do_eval([1, 2]@a, a=ar([1, 2])) == 5
-    
-    
+    class Vector:
+        def __init__(self, *args):
+            self.args = args
+            
+        def __matmul__(self, other):
+            if not isinstance(other, Vector):
+                return NotImplemented
+            return sum(i*j for i, j in zip(self.args, other.args))
+        
+    v1 = Vector(1, 2)
+    v2 = Vector(1, 2)
+    assert v1@v2 == 5
+    a = InputVariable('a')
+    assert do_eval(a @ v1, a=v2) == v1@v2
+    a = InputVariable('a')
+    assert do_eval(v1 @ a, a=v2) == v1@v2
+
 def test_CAS_disequalities(a):
     assert do_eval_uncached(a>5, a=6)
     assert do_eval_uncached(a>=5, a=6)
