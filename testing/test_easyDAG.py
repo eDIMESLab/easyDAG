@@ -291,21 +291,32 @@ def test_exception_management(a):
     isinstance(res, Exception)
 
 def test_deepcopy_cache_no_interaction(a):
+    def is_variable(s):
+        return isinstance(s._function, str)
+    
     a = InputVariable('a')
     b = 1/a +1
     c = deepcopy(b)
     res = do_eval(c , a=0)
     d = deepcopy(c)
     
+    assert is_variable(a)
+    assert not is_variable(b)
+    assert not is_variable(c)
+    assert not is_variable(d)
+    
     for step, parent in unroll(b):
-        assert step._last_result is _NO_PREVIOUS_RESULT
+        if not is_variable(step):
+            assert step._last_result is _NO_PREVIOUS_RESULT
         
     for step, parent in unroll(c):
-        assert step._last_result is not _NO_PREVIOUS_RESULT
+        if not is_variable(step):
+            assert step._last_result is not _NO_PREVIOUS_RESULT
     assert c._last_result is res
     
     for step, parent in unroll(d):
-        assert step._last_result is not _NO_PREVIOUS_RESULT
+        if not is_variable(step):
+            assert step._last_result is not _NO_PREVIOUS_RESULT
     # can't test for equality, as there is no guarantee that the copied
     # objects will have an equality method that returns true for copied objects
     # such as for exceptions

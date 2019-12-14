@@ -61,9 +61,9 @@ class RawStep:
         if isinstance(function, str):
             name = function
             if name in kwargs:
-                self._last_result = kwargs[name]
-                return self._last_result
-                #return kwargs[name]
+                #self._last_result = kwargs[name]
+                #return self._last_result
+                return kwargs[name]
             else:
                 # if the variable is not defined, return itself
                 # so that it allows to do currying of the function
