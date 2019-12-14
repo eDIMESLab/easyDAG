@@ -433,6 +433,7 @@ def test_from_dict_with_dict_params():
     p = to_dict(b)
     e = from_dict(p)
     assert are_equal(e, b)
+    assert are_equal(b._last_result, e._last_result)
 
 def test_get_free_variables(a, b, c):
     expr = a*c + c*b + a*2 +5
