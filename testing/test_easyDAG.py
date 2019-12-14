@@ -1,9 +1,9 @@
 # python -m pytest --cov=easyDAG
 from easyDAG import Step
-from easyDAG import InputVariable
+from easyDAG import InputVariable, Tokens
 from easyDAG import do_eval, are_equal, do_eval_uncached
 from easyDAG import unroll, reset_computation
-from easyDAG import find_elements, get_free_variables, process
+from easyDAG import find_elements, get_free_variables, to_dict, from_dict
 from easyDAG.easyDAG import _NO_PREVIOUS_RESULT
 
 # %%
@@ -399,15 +399,40 @@ def test_equality_values():
 
 def test_dag_processing_into_dict():
     a = InputVariable('a')
-    assert process(a) == {'$function$': 'a'}
+    assert to_dict(a) == {Tokens.FUNCTION_IDX: 'a',
+                          Tokens.CACHE_IDX: Tokens.NO_PREVIOUS_RESULT}
     b = a+2
-    assert process(b) == {'$function$': op.add,
-                          0: {'$function$': 'a'},
+    assert to_dict(b) == {Tokens.FUNCTION_IDX: op.add,
+                          Tokens.CACHE_IDX: Tokens.NO_PREVIOUS_RESULT,
+                          0: {Tokens.FUNCTION_IDX: 'a',
+                              Tokens.CACHE_IDX: Tokens.NO_PREVIOUS_RESULT},
+                          1: 2}
+    do_eval(b, a=2)
+    assert to_dict(b) == {Tokens.FUNCTION_IDX: op.add,
+                          Tokens.CACHE_IDX: 4,
+                          0: {Tokens.FUNCTION_IDX: 'a',
+                              Tokens.CACHE_IDX: Tokens.NO_PREVIOUS_RESULT},
                           1: 2}
     c = Step("random", a=1, b=2)
-    process(c) == {'$function$': 'random', 
+    to_dict(c) == {Tokens.FUNCTION_IDX: 'random', 
+                   Tokens.CACHE_IDX: Tokens.NO_PREVIOUS_RESULT,
                    'a': 1, 
                    'b': 2}
+
+def test_from_dict():
+    a = InputVariable('a')
+    b = 2**a + 1
+    p = to_dict(b)
+    e = from_dict(p)
+    assert are_equal(e, b)
+
+def test_from_dict_with_dict_params():
+    a = InputVariable('a')
+    b = Step(dict.get, {'dog': 1, 'cat': 2}, a)
+    assert do_eval(b, a='cat') == 2
+    p = to_dict(b)
+    e = from_dict(p)
+    assert are_equal(e, b)
 
 def test_get_free_variables(a, b, c):
     expr = a*c + c*b + a*2 +5

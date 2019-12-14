@@ -43,6 +43,9 @@ def are_equal(obj1, obj2):
 
 class Tokens(enum.Enum):
     NO_PREVIOUS_RESULT = enum.auto()
+    FUNCTION_IDX = enum.auto()
+    CACHE_IDX = enum.auto()
+    
 
 _NO_PREVIOUS_RESULT = Tokens.NO_PREVIOUS_RESULT#object()
 
@@ -301,19 +304,36 @@ def InputVariable(name, **kwargs):
 # ███████ ██   ██    ██    ██   ██ ██   ██  ██████    ██    ██  ██████  ██   ████
 
 
-def process(expr, cls=dict):
+def to_dict(expr):
     """transform the DAG in a dict of dicts"""
     if isinstance(expr, Step):
-        elements = cls()
-        elements['$function$'] = process(expr._function, cls=cls)
+        elements = dict()
+        elements[Tokens.FUNCTION_IDX] = to_dict(expr._function)
+        elements[Tokens.CACHE_IDX] = to_dict(expr._last_result)
         for i, a in enumerate(expr._args):
-            elements[i] = process(a, cls=cls)
+            elements[i] = to_dict(a)
         for k, v in  expr._kwargs.items():
-            elements[k] = process(v, cls=cls)
+            elements[k] = to_dict(v)
         return elements
     else:
         return expr
-
+    
+def from_dict(processed):
+    # it's not a dict, so just return the value
+    if not isinstance(processed, dict):
+        return processed
+    # it's just a normal dict, so just return the value
+    if Tokens.FUNCTION_IDX not in processed:
+        return processed
+    f = from_dict(processed[Tokens.FUNCTION_IDX])
+    c = from_dict(processed[Tokens.CACHE_IDX])
+    numerical_keys = [k for k in processed if isinstance(k, int)]
+    a = [from_dict(processed[k]) for k in sorted(numerical_keys)]
+    other_keys = [k for k in processed if isinstance(k, str)]
+    kv = [from_dict(processed[k]) for k in other_keys]
+    result = Step(f, *a, *kv)
+    result._last_result = c
+    return result
 
 def unroll(step, base=None):
     """return the adjacency list of the DAG from the starting node"""
