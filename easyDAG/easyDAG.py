@@ -25,6 +25,8 @@ def do_eval_uncached(dag, **kwargs):
 def are_equal(obj1, obj2):
     method = '__equal__'
     if not hasattr(obj1, method) or not hasattr(obj2, method):
+        if isinstance(obj1, Exception) and isinstance(obj2, Exception):
+            return repr(obj1)==repr(obj2)
         return obj1==obj2
     # implement the new class style defer of the check to the second object
     # if it is a subclass of the first one
@@ -383,5 +385,18 @@ def replace_in_DAG(dag, to_find, to_replace):
                  for a in dag._args]
     dag._kwargs = {k:replace_in_DAG(v, to_find, to_replace) 
                    for k, v in dag._kwargs.items()}
+    return dag
+
+def clear_cache_from_errors(dag):
+    if not isinstance(dag, RawStep):
+        return dag
+    if not isinstance(dag._last_result, Exception):
+        return dag
+    dag._last_result = Tokens.NO_PREVIOUS_RESULT
+    clear_cache_from_errors(dag._function)
+    for arg in dag._args:
+        clear_cache_from_errors(arg)
+    for value in dag._kwargs.values():
+        clear_cache_from_errors(value)
     return dag
 

@@ -1,7 +1,7 @@
 # python -m pytest --cov=easyDAG
 from easyDAG import Step
 from easyDAG import InputVariable, Tokens
-from easyDAG import do_eval, are_equal, do_eval_uncached
+from easyDAG import do_eval, are_equal, do_eval_uncached, clear_cache_from_errors
 from easyDAG import unroll, reset_computation, replace_in_DAG
 from easyDAG import find_elements, get_free_variables, to_dict, from_dict
 from easyDAG.easyDAG import _NO_PREVIOUS_RESULT
@@ -126,6 +126,13 @@ def test_dynamic_map_filter_reduce(a):
     filtering = Step(filter, is_gt_3, mapping)
     s2 = Step(list, filtering)
     assert do_eval(s2, a=range(6)) == [4, 5, 6]
+
+def are_equal_exception_special_case():
+    e1 = ValueError('a')
+    e2 = ValueError('a')
+    e3 = ValueError('b')
+    assert are_equal(e1, e2)
+    assert not are_equal(e1, e3)
 
 def test_iteration_over_data(a):
     def square_iter(v): return [i**2 for i in v if (i**2)>1]
@@ -458,7 +465,52 @@ def test_eval_uncached(a):
     expr = 1 + 2*a
     assert do_eval_uncached(expr, a=2) == 5
     assert do_eval_uncached(expr, a=3) == 7
-    
+
+def test_clear_cache_from_errors():
+    a = InputVariable('a')
+    b = InputVariable('b')
+    expr = 1/b + 1/a
+    do_eval(expr, a=0, b=1)
+    expected_1 = {Tokens.FUNCTION_IDX: op.add,
+                  Tokens.CACHE_IDX: TypeError("unsupported operand type(s) for +: 'int' and 'ZeroDivisionError'"),
+                  0: {Tokens.FUNCTION_IDX: op.truediv,
+                      Tokens.CACHE_IDX: 1,
+                      0: 1,
+                      1: {Tokens.FUNCTION_IDX: 'b',
+                          Tokens.CACHE_IDX: Tokens.NO_PREVIOUS_RESULT,
+                          }
+                      },
+                  1: {Tokens.FUNCTION_IDX: op.truediv,
+                      Tokens.CACHE_IDX: ZeroDivisionError('division by zero'),
+                      0: 1,
+                      1: {Tokens.FUNCTION_IDX: 'a',
+                          Tokens.CACHE_IDX: Tokens.NO_PREVIOUS_RESULT,
+                          }
+                      }
+                  }
+    assert are_equal(from_dict(expected_1), from_dict(expected_1))
+    assert are_equal(expr, from_dict(expected_1))
+    clean_expr = clear_cache_from_errors(expr)
+    expected_2 = {Tokens.FUNCTION_IDX: op.add,
+                  Tokens.CACHE_IDX: Tokens.NO_PREVIOUS_RESULT,
+                  0: {Tokens.FUNCTION_IDX: op.truediv,
+                      Tokens.CACHE_IDX: 1,
+                      0: 1,
+                      1: {Tokens.FUNCTION_IDX: 'b',
+                          Tokens.CACHE_IDX: Tokens.NO_PREVIOUS_RESULT,
+                          }
+                      },
+                  1: {Tokens.FUNCTION_IDX: op.truediv,
+                      Tokens.CACHE_IDX: Tokens.NO_PREVIOUS_RESULT,
+                      0: 1,
+                      1: {Tokens.FUNCTION_IDX: 'a',
+                          Tokens.CACHE_IDX: Tokens.NO_PREVIOUS_RESULT,
+                          }
+                      }
+                  }
+    assert are_equal(clean_expr, from_dict(expected_2))
+
+
 # CAS TESTING
 
 def test_CAS_rpow(a):
