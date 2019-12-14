@@ -51,7 +51,6 @@ class RawStep:
         self._args = list(args)
         self._kwargs = kwargs
         self._function = function
-        self._is_singleton = False
         self._last_result = _NO_PREVIOUS_RESULT
 
     def __eval__(self, **kwargs):
@@ -88,8 +87,6 @@ class RawStep:
                             " or a callable, {} found".format(function))
 
     def __equal__(self, other):
-        if self._is_singleton:
-            return self is other
         same_function = are_equal(self._function, other._function)
         if not same_function:
             return False
@@ -288,11 +285,6 @@ class Step(RawStep):
 
 def InputVariable(name, **kwargs):
     return Step(name, **kwargs)
-
-def Singleton(name, **kwargs):
-    result = Step(name, **kwargs)
-    result._is_singleton = True
-    return result
 
 
 # ██████  ██ ██████  ███████ ██      ██ ███    ██ ███████

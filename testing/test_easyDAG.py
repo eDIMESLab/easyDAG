@@ -1,6 +1,6 @@
 # python -m pytest --cov=easyDAG
 from easyDAG import Step
-from easyDAG import InputVariable, Singleton
+from easyDAG import InputVariable
 from easyDAG import do_eval, are_equal, do_eval_uncached
 from easyDAG import unroll, reset_computation
 from easyDAG import find_elements, get_free_variables, process
@@ -84,15 +84,6 @@ def test_basic_equality():
     assert are_equal(a, c)
     assert are_equal(a+b, c+b)
     assert are_equal(2*(a+b), 2*(c+b))
-
-def test_equality_for_singletons():
-    a = InputVariable('a')
-    b = InputVariable('b')
-    c = Singleton('a')    
-    assert not are_equal(a, b)
-    assert not are_equal(a, c)
-    assert are_equal(c+b, c+b)
-    assert not are_equal(a+c, c+a)
 
 def test_variable_identity_independence():
     a = InputVariable('a')
