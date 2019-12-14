@@ -36,19 +36,30 @@ Reduce = partial(Step, reduce)
 #    ██    ██           ██    ██        ██      ██    ██ ██   ██ ██
 #    ██    ███████ ███████    ██         ██████  ██████  ██████  ███████
  
+# %%
+
+@pytest.fixture
+def a():
+    return InputVariable('a')
+
+@pytest.fixture
+def b():
+    return InputVariable('b')
+
+@pytest.fixture
+def c():
+    return InputVariable('c')
+
+@pytest.fixture
+def d():
+    return InputVariable('d')
 
 # %%
-def test_eval_curry():
-    a = InputVariable('a')
-    b = InputVariable('b')
+def test_eval_curry(a, b):
     e1 = do_eval(a+b, a=1)
     assert do_eval(e1, b=4) == 5
 
-def test_curry_different_expressions():
-    a = InputVariable('a')
-    b = InputVariable('b')
-    c = InputVariable('c')
-    d = InputVariable('d')
+def test_curry_different_expressions(a, b, c, d):
     r = a*d + b*c
     r2 = do_eval(r, a=1, c=3, d=4)
     r3 = 4+b*3
@@ -97,55 +108,46 @@ def test_programmatically_create_model():
     R = make_pipeline('c', 'd')
     assert do_eval(R, c=1, d=2) == 3
 
-def test_data_structures_list():
-    a = InputVariable('a')
-    b = InputVariable('b')
-    c = InputVariable('c')
+def test_data_structures_list(a, b, c):
     L = List(a, b, c)
     assert do_eval(L, a=1, b=2, c=3) == [1, 2, 3]
     
-def test_data_structures_dict():
-    a = InputVariable('a')
-    b = InputVariable('b')
+def test_data_structures_dict(a, b):
     D = DictKV(a, b)
     assert do_eval(D, a=['a', 'b'], b=[1, 2]) == {'a':1, 'b':2}
 
-def test_static_map_filter_reduce():
-    def add1(v): return v+1
-    def is_gt_3(v): return v>3
-    a = InputVariable('a')
+def test_static_map_filter_reduce(a):
+    def add1(v):
+        return v+1
+    def is_gt_3(v):
+        return v>3
     mapping = Step(map, add1, a)
     filtering = Step(filter, is_gt_3, mapping)
     s2 = Step(list, filtering)
     assert do_eval(s2, a=[1, 2, 3, 4, 5]) == [4, 5, 6]
 
-def test_dynamic_map_filter_reduce():
-    def add1(v): return v+1
-    def is_gt_3(v): return v>3
-    a = InputVariable('a')
+def test_dynamic_map_filter_reduce(a):
+    def add1(v):
+        return v+1
+    def is_gt_3(v):
+        return v>3
     mapping = Step(map, add1, a)
     filtering = Step(filter, is_gt_3, mapping)
     s2 = Step(list, filtering)
     assert do_eval(s2, a=range(6)) == [4, 5, 6]
 
-def test_iteration_over_data():
-    a = InputVariable('a')
+def test_iteration_over_data(a):
     def square_iter(v): return [i**2 for i in v if (i**2)>1]
     s = Step(square_iter, a)
     assert do_eval(s, a=[1, 2, 3]) == [4, 9]
 
-def test_get_variable_value():
-    a = InputVariable('a')
+def test_get_variable_value(a):
     assert do_eval(a, a=1, b=4) == 1
 
-def test_equalities():
-    a = InputVariable('a')
-    b = InputVariable('b')
-    assert do_eval(a == b+1, a=2, b=1) == True
-    reset_computation(a, b)
-    assert do_eval(a != b+1, a=3, b=2) == False
-    reset_computation(a, b)
-    assert do_eval(a != b+1, a=2, b=2) == True
+def test_equalities(a, b):
+    assert do_eval_uncached(a == b+1, a=2, b=1) == True
+    assert do_eval_uncached(a != b+1, a=3, b=2) == False
+    assert do_eval_uncached(a != b+1, a=2, b=2) == True
 
 def test_warn_extraneous_classes():
     class Pippo:
@@ -154,62 +156,49 @@ def test_warn_extraneous_classes():
     with pytest.warns(UserWarning):
         do_eval(Pippo())
 
-def test_function_interface():
-    def add1(v): return v+1
-    a = InputVariable('a')
-    b = InputVariable('b')
+def test_function_interface(a, b):
+    def add1(v):
+        return v+1
     res = a(b)
     assert do_eval(res, a=add1, b=3) == 4
 
-def test_collection_interface():
-    a = InputVariable('a')
-    b = InputVariable('b')
+def test_collection_interface(a, b):
     res = a[b]
     assert do_eval(res, a=[0, 1, 4, 9], b=3) == 9
 
-def test_stateful_append():
+def test_stateful_append(a, b):
     # this is weird, as it might create errors, don't give stateful functions!
-    a = InputVariable('a')
-    b = InputVariable('b')
     res = a.append(b)
     stringa = [0]
     do_eval(res, a=stringa, b=1)
     assert stringa == [0, 1]
 
-def test_second_order_call():
-    a = InputVariable('a')
-    b = InputVariable('b')
+def test_second_order_call(a, b):
     res = a.index(b)
     values = (1, 2, 3, 4, 5, 6)
     assert do_eval(res, a=values, b=2) == 1
 
-def test_give_normal_function():
-    a = InputVariable('a')
-    def add1(v): return v+1
+def test_give_normal_function(a):
+    def add1(v):
+        return v+1
     s = Step(add1, v=a)
-    assert do_eval(s, a=3)==4
+    assert do_eval(s, a=3) == 4
 
-def test_CAS_simple_add():
-    a = InputVariable('a')
+def test_CAS_simple_add(a):
     s = a + 1
     assert do_eval(s, a=3, b=2) == 4
 
-def test_CAS_add_between_variables():
-    a = InputVariable('a')
-    b = InputVariable('b')
+def test_CAS_add_between_variables(a, b):
     s = a+b
     assert do_eval(s, a=3, b=2)==5
 
-def test_SUM_partial():
-    a = InputVariable('a')
-    b = InputVariable('b')
+def test_SUM_partial(a, b):
     s = Sum(a, b)
     assert do_eval(s, a=1, b=2) == 3
     s = Sum(a, 3)
     assert do_eval(s, a=1, b=2) == 4
 
-def test_CAS_sum_between_strings_asymmetric():
-    a = InputVariable('a')
+def test_CAS_sum_between_strings_asymmetric(a):
     r1 = "hello" + a
     r2 = a + "hello"
     v1 = do_eval(r1, a='world')
@@ -218,25 +207,18 @@ def test_CAS_sum_between_strings_asymmetric():
     assert v1 == 'helloworld'
     assert v2 == 'worldhello'
 
-def test_multiple_results():
-    a = InputVariable('a')
-    b = InputVariable('b')
+def test_multiple_results(a, b):
     s1 = Sum(a, b)
     s2 = Sum(a, 1)
     res = Tuple(s1, s2)
     assert do_eval(res, a=1, b=3) == (4, 2)
 
-def test_normal_partial_values_in_step():
+def test_normal_partial_values_in_step(a):
     Pow = partial(Step, lambda n, p: n**p)
-    a = InputVariable('a')
     p = Pow(n=a, p=2)
     assert do_eval(p, a=5) == 25
 
-def test_CAS_sums_and_prods():
-    a = InputVariable('a')
-    b = InputVariable('b')
-    c = InputVariable('c')
-    d = InputVariable('d')
+def test_CAS_sums_and_prods(a, b, c, d):
     mul_1 = Mul(a, d)
     mul_2 = Mul(b, c)
     sum_1 = Sum(mul_1, mul_2)
@@ -244,9 +226,7 @@ def test_CAS_sums_and_prods():
     r = a*d + b*c
     assert do_eval(r, a=1, b=2, c=2, d=4) == 8
 
-def test_CAS_power():
-    a = InputVariable('a')
-    b = InputVariable('b')
+def test_CAS_power(a, b):
     r1 = a**b
     r2 = b**a
     assert do_eval(r1, a=2, b=3) == 8
@@ -292,7 +272,7 @@ def test_sklearn_1():
     clf_2 = RandomForestClassifier(random_state=0, n_estimators=10)
     assert np.all(result == clf_2.fit(X, y).predict(X2))
 
-def test_pandas_merge_simple():
+def test_pandas_merge_simple(a, b):
     import pandas as pd
     left = pd.DataFrame({'key': ['K0', 'K1', 'K2', 'K3'],
                          'A': ['A0', 'A1', 'A2', 'A3'],
@@ -303,14 +283,11 @@ def test_pandas_merge_simple():
                           'D': ['D0', 'D1', 'D2', 'D3']})
 
     result = pd.merge(left, right, on='key')
-    Merge = partial(Step, pd.merge)
-    a = InputVariable('a')
-    b = InputVariable('b')
-    cas_result = Merge(a, b, on='key')
+    cas_result = Step(pd.merge, a, b, on='key')
     result_post = do_eval(cas_result, a=left, b=right)
     assert (result == result_post).all().all()
 
-def test_pandas_merge_multiple_dynamic_keys():
+def test_pandas_merge_multiple_dynamic_keys(a, b, c):
     import pandas as pd
     left = pd.DataFrame({'key1': ['K0', 'K0', 'K1', 'K2'],
                         'key2': ['K0', 'K1', 'K0', 'K1'],
@@ -323,11 +300,7 @@ def test_pandas_merge_multiple_dynamic_keys():
                          'D': ['D0', 'D1', 'D2', 'D3']})
 
     result = pd.merge(left, right, how='left', on=['key1', 'key2'])
-    Merge = partial(Step, pd.merge)
-    a = InputVariable('a')
-    b = InputVariable('b')
-    c = InputVariable('c')
-    cas_result = Merge(a, b, how='left', on=c)
+    cas_result = Step(pd.merge, a, b, how='left', on=c)
     result_post = do_eval(cas_result, a=left, b=right, c=['key1', 'key2'])
     assert (result.fillna(0) == result_post.fillna(0)).all().all()
 
@@ -337,14 +310,13 @@ def test_unorthodox_variable_names():
     b = InputVariable('--b--')
     assert do_eval(a+b, **data) == 3
 
-def test_caching_results():
+def test_caching_results(a):
     num_of_executions = 0
     def echo_increase(x):
         nonlocal num_of_executions
         num_of_executions +=1
         return x+1
-    
-    a = InputVariable('a')
+
     s = Step(echo_increase, a)
     assert do_eval(s, a=1) == 2
     assert do_eval(s, a=2) == 2
@@ -352,11 +324,7 @@ def test_caching_results():
     assert do_eval(s, a=2) == 3
     assert num_of_executions == 2
     
-def test_resect_part_of_the_DAG():
-    a = InputVariable('a')
-    b = InputVariable('b')
-    c = InputVariable('c')
-    d = InputVariable('d')
+def test_resect_part_of_the_DAG(a, b, c, d):
     r = a*d + b*c
     r2 = do_eval(r, a=1, c=3, d=4)
     r3 = 4+b*3
@@ -372,11 +340,7 @@ def test_resect_part_of_the_DAG():
     r3._args[1] =  b*4
     assert do_eval(r3, b=1) == 8
     
-def test_find_subtrees():
-    a = InputVariable('a')
-    b = InputVariable('b')
-    c = InputVariable('c')
-    d = InputVariable('d')
+def test_find_subtrees(a, b, c, d):
     r = (a*b)*d + c*(a*b)
     
     adj_list = list(unroll(r))
@@ -388,15 +352,13 @@ def test_find_subtrees():
     res = list(find_elements(a*b, adj_list))
     assert len(res)==2
     
-def test_exception_management():
-    a = InputVariable('a')
+def test_exception_management(a):
     res = do_eval(1/a, a=0)
     isinstance(res, ZeroDivisionError)
     res = do_eval(1/a +1 , a=0)
     isinstance(res, Exception)
 
-def test_deepcopy_cache_no_interaction():
-    a = InputVariable('a')
+def test_deepcopy_cache_no_interaction(a):
     b = 1/a +1
     c = deepcopy(b)
     res = do_eval(c , a=0)
@@ -490,11 +452,7 @@ def test_dag_processing_into_dict():
                    'a': 1, 
                    'b': 2}
 
-def test_get_free_variables():
-    a = InputVariable('a')
-    b = InputVariable('b')
-    c = InputVariable('c')
-    
+def test_get_free_variables(a, b, c):
     expr = a*c + c*b + a*2 +5
     free_vars = get_free_variables(expr)
     assert len(free_vars) == 3
@@ -504,8 +462,7 @@ def test_repr():
     a = Step('a', 1, b=2)
     assert repr(a) == "Step('a', 1, b=2)"
 
-def test_eval_uncached():
-    a = InputVariable('a')
+def test_eval_uncached(a):
     expr = 1 + 2*a
     assert do_eval_uncached(expr, a=2) == 5
     assert do_eval_uncached(expr, a=3) == 7
@@ -513,11 +470,7 @@ def test_eval_uncached():
 
 
 # CAS TESTING
-    
-@pytest.fixture
-def a():
-    return InputVariable('a')
-    
+
 def test_CAS_rpow(a):
     res = do_eval(2**a, a=3)
     assert res == 8
