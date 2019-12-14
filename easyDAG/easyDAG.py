@@ -1,6 +1,7 @@
 import warnings
 import operator as op
 from copy import deepcopy
+import enum
 
 class PipeTypeWarning(UserWarning):
     pass
@@ -40,7 +41,10 @@ def are_equal(obj1, obj2):
 #      ██    ██    ██      ██          ██      ██      ██   ██      ██      ██
 # ███████    ██    ███████ ██           ██████ ███████ ██   ██ ███████ ███████
 
-_NO_PREVIOUS_RESULT = object()
+class Tokens(enum.Enum):
+    NO_PREVIOUS_RESULT = enum.auto()
+
+_NO_PREVIOUS_RESULT = Tokens.NO_PREVIOUS_RESULT#object()
 
 class RawStep:
     def __init__(self, function, *args, **kwargs):
@@ -60,6 +64,7 @@ class RawStep:
             if name in kwargs:
                 self._last_result = kwargs[name]
                 return self._last_result
+                #return kwargs[name]
             else:
                 # if the variable is not defined, return itself
                 # so that it allows to do currying of the function
@@ -126,7 +131,9 @@ class RawStep:
         f = deepcopy(self._function)
         a = deepcopy(self._args)
         k = deepcopy(self._kwargs)
-        return self.__class__(f, *a, **k)
+        result = self.__class__(f, *a, **k)
+        result._last_result = deepcopy(self._last_result)
+        return result
         
         
 
