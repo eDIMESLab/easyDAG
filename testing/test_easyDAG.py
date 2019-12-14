@@ -127,7 +127,7 @@ def test_dynamic_map_filter_reduce(a):
     s2 = Step(list, filtering)
     assert do_eval(s2, a=range(6)) == [4, 5, 6]
 
-def are_equal_exception_special_case():
+def test_are_equal_exception_special_case():
     e1 = ValueError('a')
     e2 = ValueError('a')
     e3 = ValueError('b')
@@ -509,6 +509,27 @@ def test_clear_cache_from_errors():
                       }
                   }
     assert are_equal(clean_expr, from_dict(expected_2))
+
+def test_clear_cache_not_action_without_errors(a):
+    expr = a+1
+    res_1 = do_eval(expr, a=2)
+    clear_cache_from_errors(expr)
+    assert expr._last_result is res_1
+    
+
+def test_clear_cache_from_errors_with_kwargs(a, b, c):
+    def partial_pow(p):
+        if not isinstance(p, int):
+            raise ValueError("should be int")
+        def my_pow(i):
+            return i**p
+        return my_pow
+    pow = Step(partial_pow, p=b)
+    expr = Step(sorted, a, key=pow) * (c+1)
+    do_eval(expr, a=[1, 3, -2], b='2', c=1)
+    clear_cache_from_errors(expr)
+    to_dict(expr)
+    assert do_eval(expr, a=[1, 3, -2], b=2, c=1) == [1, -2, 3, 1, -2, 3]
 
 
 # CAS TESTING

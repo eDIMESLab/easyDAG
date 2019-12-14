@@ -387,16 +387,16 @@ def replace_in_DAG(dag, to_find, to_replace):
                    for k, v in dag._kwargs.items()}
     return dag
 
-def clear_cache_from_errors(dag):
+def clear_cache_from_errors(dag, force=False):
     if not isinstance(dag, RawStep):
         return dag
-    if not isinstance(dag._last_result, Exception):
+    if not force and not isinstance(dag._last_result, Exception):
         return dag
     dag._last_result = Tokens.NO_PREVIOUS_RESULT
-    clear_cache_from_errors(dag._function)
+    clear_cache_from_errors(dag._function, force=True)
     for arg in dag._args:
-        clear_cache_from_errors(arg)
+        clear_cache_from_errors(arg, force=True)
     for value in dag._kwargs.values():
-        clear_cache_from_errors(value)
+        clear_cache_from_errors(value, force=True)
     return dag
 
