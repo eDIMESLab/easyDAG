@@ -186,6 +186,48 @@ class Step(RawStep):
     
     def __rtruediv__(self, other):
         return self.__class__(op.truediv, other, self)
+    
+    def __abs__(self):
+        return self.__class__(abs, self)
+    
+    def __neg__(self):
+        return self.__class__(op.neg, self)
+    
+    def __pos__(self):
+        return self.__class__(op.pos, self)
+    
+    def __invert__(self):
+        return self.__class__(op.invert, self)
+    
+    
+
+
+# -                  object.__sub__(self, other)
+# //                 object.__floordiv__(self, other)
+# %                  object.__mod__(self, other)
+# <<                 object.__lshift__(self, other)
+# >>                 object.__rshift__(self, other)
+# &                  object.__and__(self, other)
+# ^                  object.__xor__(self, other)
+# |                  object.__or__(self, other)
+        
+# <                 object.__lt__(self, other)
+# <=                object.__le__(self, other)
+# >=                object.__ge__(self, other)
+# >                 object.__gt__(self, other)    
+    
+#~                 object.__invert__(self)
+#complex()         object.__complex__(self)
+#int()             object.__int__(self)
+#long()            object.__long__(self)
+#float()           object.__float__(self)
+#oct()             object.__oct__(self)
+#hex()             object.__hex__(self)
+# round            object.__round__(self)
+#__floor__(self) Implements behavior for math.floor(), i.e., rounding down to the nearest integer.
+#__ceil__(self) Implements behavior for math.ceil(), i.e., rounding up to the nearest integer.
+#__trunc__(self) Implements behavior for math.trunc(), i.e., truncating to an integral.
+        
 
 
 def InputVariable(name, **kwargs):

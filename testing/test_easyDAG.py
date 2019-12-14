@@ -499,16 +499,6 @@ def test_get_free_variables():
     free_vars = get_free_variables(expr)
     assert len(free_vars) == 3
 
-# CAS TESTING
-def test_rpow():
-    a = InputVariable('a')
-    res = do_eval(2**a, a=3)
-    assert res == 8
-    
-def test_truediv():
-    a = InputVariable('a')
-    res = do_eval(a/2, a=8)
-    assert res == 4
 
 def test_repr():
     a = Step('a', 1, b=2)
@@ -520,3 +510,32 @@ def test_eval_uncached():
     assert do_eval_uncached(expr, a=2) == 5
     assert do_eval_uncached(expr, a=3) == 7
     
+
+
+# CAS TESTING
+    
+@pytest.fixture
+def a():
+    return InputVariable('a')
+    
+def test_CAS_rpow(a):
+    res = do_eval(2**a, a=3)
+    assert res == 8
+    
+def test_CAS_truediv(a):
+    res = do_eval(a/2, a=8)
+    assert res == 4
+    
+def test_CAS_abs(a):
+    b = abs(a)
+    res = do_eval(b, a=-2)
+    assert res == 2
+
+def test_CAS_pos(a):
+    assert do_eval(+a, a=2) == 2
+
+def test_CAS_neg(a):
+    assert do_eval(-a, a=2) == -2
+    
+def test_CAS_invert(a):
+    assert do_eval(~a, a=2) == ~2
