@@ -136,6 +136,9 @@ class RawStep:
         result = self.__class__(f, *a, **k)
         result._last_result = deepcopy(self._last_result)
         return result
+    
+    def __bool__(self):
+        raise NotImplementedError("DAGS don't have a defined truth value")
         
         
 

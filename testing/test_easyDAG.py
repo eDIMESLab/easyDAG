@@ -11,8 +11,10 @@ from functools import partial, reduce
 import operator as op
 from copy import deepcopy, copy
 # %%
+from cmath import isnan # needed for some tests
 import pytest
-
+from hypothesis import given, example, assume
+import hypothesis.strategies as st
 # %%
 
 Sum = partial(Step, lambda *args: sum(args))
@@ -55,6 +57,135 @@ def d():
     return InputVariable('d')
 
 # %%
+
+names_strategy = st.text(min_size=1, max_size=100)
+general_values_strategy = st.one_of(st.text(),
+                       st.floats(),
+                       )
+
+numerical_value = st.one_of(st.floats(),
+                            #st.complex_numbers(),
+                            st.integers(),
+                            #st.decimals(),
+                            #st.fractions(),
+                            )
+
+mathematical_functions = st.one_of(st.just(op.add),
+                                   st.just(op.mul),
+                                   st.just(op.eq),
+                                   st.just(op.ne),
+                                   st.just(op.sub),
+                                   st.just(op.pow),
+                                   st.just(op.truediv),
+                                   st.just(op.__and__),
+                                   st.just(op.__or__),
+                                   st.just(op.lt),
+                                   st.just(op.le),
+                                   st.just(op.gt),
+                                   st.just(op.ge),
+                                   st.just(op.floordiv),
+                                   st.just(op.mod),
+                                   st.just(op.lshift),
+                                   st.just(op.rshift),
+                                   st.just(op.xor),
+                                   )
+
+@given(name=names_strategy, value=general_values_strategy)
+@example(name='a', value=1)
+def test_get_variable_value(name, value):
+    variable = InputVariable(name)
+    values = {name: value} 
+    assert do_eval(variable, **values) is value
+
+
+@given(name_a=names_strategy, 
+       name_b=names_strategy,
+       value_a=numerical_value,
+       value_b=numerical_value,
+       op_math_function=mathematical_functions,
+       )
+@example(name_a='a', name_b='b', value_a=1, value_b=2, op_math_function=op.add)
+def test_math_interface_hyp(name_a, name_b, value_a, value_b, op_math_function):
+    try:
+        expected = op_math_function(value_a, value_b)
+    except Exception:
+        assume(False)
+    try:
+        is_nan_value = isnan(expected)
+    except OverflowError:
+        is_nan_value = False
+    assume(not is_nan_value)
+    assume(name_a != name_b)
+    a = InputVariable(name_a)
+    b = InputVariable(name_b)
+    value_dict = {name_a: value_a, name_b: value_b}
+    expr_1 = Step(op_math_function, a, b)
+    expr_2 = op_math_function(a, b)
+    assert isinstance(expr_1, Step)
+    assert isinstance(expr_2, Step)
+    assert are_equal(expr_1, expr_2)
+    observed_1 = do_eval(expr_1, **value_dict)
+    observed_2 = do_eval(expr_2, **value_dict)
+    assert isinstance(observed_1, type(expected))
+    assert isinstance(observed_2, type(expected))
+    assert  observed_1 == expected
+    assert  observed_2 == expected
+    
+    value_a_dict = {name_a: value_a}
+    expr_direct = op_math_function(a, value_b)
+    assert isinstance(expr_direct, Step)
+    observed = do_eval(expr_direct, **value_a_dict)
+    assert isinstance(observed, type(expected))
+    assert  observed == expected
+    
+    value_b_dict = {name_b: value_b}
+    expr_inverse = op_math_function(value_a, b)
+    assert isinstance(expr_inverse, Step)
+    observed = do_eval(expr_inverse, **value_b_dict)
+    assert isinstance(observed, type(expected))
+    assert  observed == expected
+    
+
+
+
+@given(name_a=names_strategy, 
+       name_b=names_strategy,
+       value_a=numerical_value,
+       value_b=numerical_value,
+       op_math_function=mathematical_functions,
+       )
+@example(name_a='a', name_b='b', value_a=1, value_b=2, op_math_function=op.add)
+def test_eval_curry_hyp(name_a, name_b, value_a, value_b, op_math_function):
+    try:
+        expected = op_math_function(value_a, value_b)
+    except Exception:
+        assume(False)
+    try:
+        is_nan_value = isnan(expected)
+    except OverflowError:
+        is_nan_value = False
+    assume(not is_nan_value)
+    assume(name_a != name_b)
+    a = InputVariable(name_a)
+    b = InputVariable(name_b)
+    expr = Step(op_math_function, a, b)
+    a_dict = {name_a: value_a}
+    b_dict = {name_b: value_b}
+    curried = do_eval(expr, **a_dict)
+    assert isinstance(curried, Step)
+    observed = do_eval(curried, **b_dict)
+    assert isinstance(observed, type(expected))
+    assert  observed == expected
+
+# %%
+def test_equality_fails(a):
+    e1 = a+1
+    e2 = a+1
+    with pytest.raises(NotImplementedError):
+        is_truthy = bool(e1==e2)
+        assert is_truthy
+        
+
 def test_eval_curry(a, b):
     e1 = do_eval(a+b, a=1)
     assert do_eval(e1, b=4) == 5
@@ -138,9 +269,6 @@ def test_iteration_over_data(a):
     def square_iter(v): return [i**2 for i in v if (i**2)>1]
     s = Step(square_iter, a)
     assert do_eval(s, a=[1, 2, 3]) == [4, 9]
-
-def test_get_variable_value(a):
-    assert do_eval(a, a=1, b=4) == 1
 
 def test_equalities(a, b):
     assert do_eval_uncached(a == b+1, a=2, b=1) == True
@@ -367,12 +495,6 @@ def test_dynamic_variable_generation_surprising():
     a = InputVariable('a')
     b= Step(a, 1, 2)
     res = do_eval(b, a="adios", adios=op.add)
-    assert res(1, 2) == 3
-    
-    a = InputVariable('a')
-    b= Step(a, 1, 2)
-    partial_dag = do_eval(b, a="adios")
-    res = do_eval(partial_dag, adios=op.add)
     assert res(1, 2) == 3
 
 
