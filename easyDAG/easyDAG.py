@@ -340,21 +340,28 @@ def from_dict(processed):
     result._last_result = c
     return result
 
-def unroll(step, base=None):
+def unroll(step, _base=None):
     """return the adjacency list of the DAG from the starting node"""
-    if isinstance(step, RawStep):
-        yield (step, base)
-        yield from unroll(step._function, step)
-        for a in step._args:
-            yield from unroll(a, step)
-        for v in step._kwargs.values():
-            yield from unroll(v, step)
+    if not isinstance(step, RawStep):
+        return None
+    yield (step, _base, None)
+    for subdag, base, pos in unroll(step._function, step):
+        pos = pos if pos is not None else Tokens.FUNCTION_IDX
+        yield subdag, base, pos
+    for idx, a in enumerate(step._args):
+        for subdag, base, pos in unroll(a, step):
+            pos = pos if pos is not None else idx
+            yield subdag, base, pos 
+    for k, v in step._kwargs.items():
+        for subdag, base, pos in unroll(v, step):
+            pos = pos if pos is not None else k
+            yield subdag, base, pos 
 
 
 def reset_computation(*dags):
     """reset the computed value for all the nodes in the DAG"""
     for dag in dags:
-        for step, _ in unroll(dag):
+        for step, *_ in unroll(dag):
             step._last_result = _NO_PREVIOUS_RESULT
     return dags
 

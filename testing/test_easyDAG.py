@@ -57,8 +57,15 @@ def d():
     return InputVariable('d')
 
 # %%
-
-names_strategy = st.text(min_size=1, max_size=100)
+unicode_categories = ('Nd', # Number, decimal digit
+                      'Lu', # Letter, uppercase
+                      'Ll', # Letter, uppercase
+                      'Pc', # Punctuation, connector, Includes "_" underscore
+                      'Pd', # Punctuation, dash
+                      )
+legitimate_chars = st.characters(whitelist_categories=(unicode_categories))
+names_strategy = st.text(alphabet=legitimate_chars,
+                         min_size=1, max_size=100)
 general_values_strategy = st.one_of(st.text(),
                        st.floats(),
                        )
@@ -99,11 +106,11 @@ def test_get_variable_value(name, value):
 
 
 @given(name_a=names_strategy, 
-       name_b=names_strategy,
-       value_a=numerical_value,
-       value_b=numerical_value,
-       op_math_function=mathematical_functions,
-       )
+        name_b=names_strategy,
+        value_a=numerical_value,
+        value_b=numerical_value,
+        op_math_function=mathematical_functions,
+        )
 @example(name_a='a', name_b='b', value_a=1, value_b=2, op_math_function=op.add)
 def test_math_interface_hyp(name_a, name_b, value_a, value_b, op_math_function):
     try:
@@ -146,14 +153,15 @@ def test_math_interface_hyp(name_a, name_b, value_a, value_b, op_math_function):
     assert  observed == expected
     
 
-
+#TODO: should test multiple operations by creting a queue of values and
+#operations and evaluate the whole stack
 
 @given(name_a=names_strategy, 
-       name_b=names_strategy,
-       value_a=numerical_value,
-       value_b=numerical_value,
-       op_math_function=mathematical_functions,
-       )
+        name_b=names_strategy,
+        value_a=numerical_value,
+        value_b=numerical_value,
+        op_math_function=mathematical_functions,
+        )
 @example(name_a='a', name_b='b', value_a=1, value_b=2, op_math_function=op.add)
 def test_eval_curry_hyp(name_a, name_b, value_a, value_b, op_math_function):
     try:
@@ -418,7 +426,25 @@ def test_find_subtrees(a, b, c, d):
     adj_list = list(unroll(r2))
     res = list(find_elements(a*b, adj_list))
     assert len(res)==2
-    
+
+def test_simple_unroll(a, b, c, d):
+    expr_base = Step(c, d)
+    expr = Step(expr_base, x=a, y=b)
+    for subdag, basedag, position in unroll(expr):
+        assert isinstance(subdag, Step)
+        if basedag is None:
+            assert position is None
+            continue
+        assert isinstance(basedag, Step)
+        if position == Tokens.FUNCTION_IDX:
+            assert subdag is basedag._function
+        elif isinstance(position, str):
+            assert subdag is basedag._kwargs[position]
+        elif isinstance(position, int):
+            assert subdag is basedag._args[position]
+        else:
+            assert False
+
 def test_exception_management(a):
     res = do_eval(1/a, a=0)
     isinstance(res, ZeroDivisionError)
@@ -440,16 +466,16 @@ def test_deepcopy_cache_no_interaction(a):
     assert not is_variable(c)
     assert not is_variable(d)
     
-    for step, parent in unroll(b):
+    for step, parent, position in unroll(b):
         if not is_variable(step):
             assert step._last_result is _NO_PREVIOUS_RESULT
         
-    for step, parent in unroll(c):
+    for step, parent, position in unroll(c):
         if not is_variable(step):
             assert step._last_result is not _NO_PREVIOUS_RESULT
     assert c._last_result is res
     
-    for step, parent in unroll(d):
+    for step, parent, position in unroll(d):
         if not is_variable(step):
             assert step._last_result is not _NO_PREVIOUS_RESULT
     # can't test for equality, as there is no guarantee that the copied
