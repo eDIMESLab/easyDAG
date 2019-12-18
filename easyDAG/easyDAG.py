@@ -26,7 +26,7 @@ def are_equal(obj1, obj2):
     method = '__equal__'
     obj1_has_equal = hasattr(obj1, method)
     obj2_has_equal = hasattr(obj2, method)
-    if not obj1_has_equal and not obj2_has_equal:
+    if (not obj1_has_equal) and (not obj2_has_equal):
         if isinstance(obj1, Exception) and isinstance(obj2, Exception):
             return repr(obj1)==repr(obj2)
         return obj1==obj2
@@ -351,20 +351,19 @@ def from_dict(processed):
 
 def unroll(step, _base=None):
     """return the adjacency list of the DAG from the starting node"""
-    if not isinstance(step, RawStep):
-        return None
-    yield (step, _base, None)
-    for subdag, base, pos in unroll(step._function, step):
-        pos = pos if pos is not None else Tokens.FUNCTION_IDX
-        yield subdag, base, pos
-    for idx, a in enumerate(step._args):
-        for subdag, base, pos in unroll(a, step):
-            pos = pos if pos is not None else idx
-            yield subdag, base, pos 
-    for k, v in step._kwargs.items():
-        for subdag, base, pos in unroll(v, step):
-            pos = pos if pos is not None else k
-            yield subdag, base, pos 
+    if isinstance(step, RawStep):
+        yield (step, _base, None)
+        for subdag, base, pos in unroll(step._function, step):
+            pos = pos if pos is not None else Tokens.FUNCTION_IDX
+            yield subdag, base, pos
+        for idx, a in enumerate(step._args):
+            for subdag, base, pos in unroll(a, step):
+                pos = pos if pos is not None else idx
+                yield subdag, base, pos 
+        for k, v in step._kwargs.items():
+            for subdag, base, pos in unroll(v, step):
+                pos = pos if pos is not None else k
+                yield subdag, base, pos 
 
 
 def reset_computation(*dags):

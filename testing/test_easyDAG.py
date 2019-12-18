@@ -427,6 +427,15 @@ def test_find_subtrees(a, b, c, d):
     res = list(find_elements(a*b, adj_list))
     assert len(res)==2
 
+def test_unroll_contains_objects_simple_operations(a, b):
+    expr = a + b
+    assert len(list(unroll(expr)))==3
+    
+def test_unroll_contains_objects_generic_operations(a, b, c):
+    expr = Step(a, b, c)
+    assert len(list(unroll(expr)))==4
+    
+    
 def test_simple_unroll(a, b, c, d):
     expr_base = Step(c, d)
     expr = Step(expr_base, x=a, y=b)
@@ -793,5 +802,6 @@ def test_simplify_DAG():
     assert are_equal(new_expr, old_expr)
     len_old = len({id(subdag) for subdag, *_ in unroll(old_expr)})
     len_new = len({id(subdag) for subdag, *_ in unroll(expr)})
-    print(len_old, len_new)
+    assert len_old == 11
+    assert len_new == 7
     assert len_old >= len_new
