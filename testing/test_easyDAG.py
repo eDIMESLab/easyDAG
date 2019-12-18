@@ -4,8 +4,7 @@ from easyDAG import InputVariable, Tokens, simplify
 from easyDAG import do_eval, are_equal, do_eval_uncached, clear_cache_from_errors
 from easyDAG import unroll, reset_computation, replace_in_DAG
 from easyDAG import find_elements, get_free_variables, to_dict, from_dict
-from easyDAG.easyDAG import _NO_PREVIOUS_RESULT
-
+from easyDAG import count_operations
 # %%
 from functools import partial, reduce
 import operator as op
@@ -477,16 +476,16 @@ def test_deepcopy_cache_no_interaction(a):
     
     for step, parent, position in unroll(b):
         if not is_variable(step):
-            assert step._last_result is _NO_PREVIOUS_RESULT
+            assert step._last_result is Tokens.NO_PREVIOUS_RESULT
         
     for step, parent, position in unroll(c):
         if not is_variable(step):
-            assert step._last_result is not _NO_PREVIOUS_RESULT
+            assert step._last_result is not Tokens.NO_PREVIOUS_RESULT
     assert c._last_result is res
     
     for step, parent, position in unroll(d):
         if not is_variable(step):
-            assert step._last_result is not _NO_PREVIOUS_RESULT
+            assert step._last_result is not Tokens.NO_PREVIOUS_RESULT
     # can't test for equality, as there is no guarantee that the copied
     # objects will have an equality method that returns true for copied objects
     # such as for exceptions
@@ -805,3 +804,16 @@ def test_simplify_DAG():
     assert len_old == 11
     assert len_new == 7
     assert len_old >= len_new
+
+def test_count_expressions():
+    a = Step('a')
+    b = Step('b')
+    c = Step('c')
+    dag = a + b + c
+    do_eval(dag, a=1, b=2)
+    res = count_operations(dag)
+    assert res.n_of_nodes == 5
+    assert res.n_of_operations == 5
+    assert res.n_cached == 2
+    assert res.n_variables == 3
+    assert res.n_free_variables == 3

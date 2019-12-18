@@ -2,6 +2,7 @@ import warnings
 import operator as op
 from copy import deepcopy
 import enum
+from typing import NamedTuple
 
 class PipeTypeWarning(UserWarning):
     pass
@@ -20,7 +21,6 @@ def do_eval(obj, **kwargs):
 def do_eval_uncached(dag, **kwargs):
     dag = deepcopy(dag)
     return do_eval(dag, **kwargs)
-
 
 def are_equal(obj1, obj2):
     method = '__equal__'
@@ -57,18 +57,15 @@ class Tokens(enum.Enum):
     FUNCTION_IDX = enum.auto()
     CACHE_IDX = enum.auto()
     
-
-_NO_PREVIOUS_RESULT = Tokens.NO_PREVIOUS_RESULT#object()
-
 class RawStep:
     def __init__(self, function, *args, **kwargs):
         self._args = list(args)
         self._kwargs = kwargs
         self._function = function
-        self._last_result = _NO_PREVIOUS_RESULT
+        self._last_result = Tokens.NO_PREVIOUS_RESULT
 
     def __eval__(self, **kwargs):
-        if self._last_result is not _NO_PREVIOUS_RESULT:
+        if self._last_result is not Tokens.NO_PREVIOUS_RESULT:
             return self._last_result
         function = do_eval(self._function, **kwargs)
         # if the function evaluates to a string (not a callable) then it represents a parameter!
@@ -286,7 +283,6 @@ class Step(RawStep):
     def __rmatmul__(self, other):
         return self.__class__(op.matmul, other, self)
 
-#bool()            object.__bool__(self) 
 #complex()         object.__complex__(self)
 #int()             object.__int__(self)
 #long()            object.__long__(self)
@@ -298,11 +294,22 @@ class Step(RawStep):
 #__ceil__(self) Implements behavior for math.ceil(), i.e., rounding up to the nearest integer.
 #__trunc__(self) Implements behavior for math.trunc(), i.e., truncating to an integral.
         
-
-
 def InputVariable(name, **kwargs):
     return Step(name, **kwargs)
 
+
+def is_dag(dag):
+    return isinstance(dag, RawStep)
+
+def is_variable(dag):
+    return isinstance(dag._function, str)
+
+def is_cached(dag):
+    last_result = dag._last_result
+    if is_dag(last_result):
+        return True
+    return  last_result != Tokens.NO_PREVIOUS_RESULT
+    
 
 # ██████  ██ ██████  ███████ ██      ██ ███    ██ ███████
 # ██   ██ ██ ██   ██ ██      ██      ██ ████   ██ ██
@@ -365,17 +372,81 @@ def unroll(step, _base=None):
                 pos = pos if pos is not None else k
                 yield subdag, base, pos 
 
-
 def reset_computation(*dags):
     """reset the computed value for all the nodes in the DAG"""
     for dag in dags:
         for step, *_ in unroll(dag):
-            step._last_result = _NO_PREVIOUS_RESULT
+            step._last_result = Tokens.NO_PREVIOUS_RESULT
     return dags
+
+def clear_cache_from_errors(dag, force=False):
+    if not is_dag(dag):
+        return dag
+    if not force and not isinstance(dag._last_result, Exception):
+        return dag
+    dag._last_result = Tokens.NO_PREVIOUS_RESULT
+    clear_cache_from_errors(dag._function, force=True)
+    for arg in dag._args:
+        clear_cache_from_errors(arg, force=True)
+    for value in dag._kwargs.values():
+        clear_cache_from_errors(value, force=True)
+    return dag
+
+def replace_in_DAG(dag, to_find, to_replace):
+    if not is_dag(dag):
+        return dag
+    if are_equal(dag, to_find):
+        return to_replace
+    dag._function = replace_in_DAG(dag._function, to_find, to_replace)
+    dag._args = [replace_in_DAG(a, to_find, to_replace) 
+                 for a in dag._args]
+    dag._kwargs = {k:replace_in_DAG(v, to_find, to_replace) 
+                   for k, v in dag._kwargs.items()}
+    return dag
+
+def simplify(dag):
+    for subdag1, base1, position1 in unroll(dag):
+        for subdag2, base2, position2 in unroll(dag):
+            if (base1 is None) or (base2 is None):
+                continue
+            if not are_equal(subdag1, subdag2):
+                continue
+            if position2 == Tokens.FUNCTION_IDX:
+                base2._function = subdag1
+            elif isinstance(position2, str):
+                base2._kwargs[position2] = subdag1
+            elif isinstance(position2, int):
+                base2._args[position2] = subdag1
+    return dag
+
+class OperationCount(NamedTuple):
+    n_of_nodes: int
+    n_of_operations: int
+    n_cached: int
+    n_variables: int
+    n_free_variables: int
+    
+def count_operations(dag):
+    unrolled = [d for d, *_ in unroll(dag)]
+    n_of_nodes = len(unrolled)
+    unique_nodes = {id(d) for d in unrolled}
+    n_of_operations = len(unique_nodes)
+    cached = {id(d) for d in unrolled if is_cached(d)}
+    n_cached = len(cached)
+    variables = {id(d) for d in unrolled if is_variable(d)}
+    n_variables = len(variables)
+    free_variables = len(variables - cached)
+    return OperationCount(n_of_nodes,
+                          n_of_operations,
+                          n_cached,
+                          n_variables,
+                          free_variables)
+
+# %%
 
 def get_free_variables(step):
     """given the DAG, search for all the free variables"""
-    results = [s for s, *t in unroll(step) if isinstance(s._function, str)]
+    results = [s for s, *t in unroll(step) if is_variable(s)]
     
     reduced = []
     for element in results:
@@ -392,44 +463,3 @@ def find_elements(obj, results):
         (element, *_) = el
         if are_equal(obj, element):
             yield idx
-
-def replace_in_DAG(dag, to_find, to_replace):
-    if not isinstance(dag, RawStep):
-        return dag
-    if are_equal(dag, to_find):
-        return to_replace
-    dag._function = replace_in_DAG(dag._function, to_find, to_replace)
-    dag._args = [replace_in_DAG(a, to_find, to_replace) 
-                 for a in dag._args]
-    dag._kwargs = {k:replace_in_DAG(v, to_find, to_replace) 
-                   for k, v in dag._kwargs.items()}
-    return dag
-
-def clear_cache_from_errors(dag, force=False):
-    if not isinstance(dag, RawStep):
-        return dag
-    if not force and not isinstance(dag._last_result, Exception):
-        return dag
-    dag._last_result = Tokens.NO_PREVIOUS_RESULT
-    clear_cache_from_errors(dag._function, force=True)
-    for arg in dag._args:
-        clear_cache_from_errors(arg, force=True)
-    for value in dag._kwargs.values():
-        clear_cache_from_errors(value, force=True)
-    return dag
-
-
-def simplify(dag):
-    for subdag1, base1, position1 in unroll(dag):
-        for subdag2, base2, position2 in unroll(dag):
-            if (base1 is None) or (base2 is None):
-                continue
-            if not are_equal(subdag1, subdag2):
-                continue
-            if position2 == Tokens.FUNCTION_IDX:
-                base2._function = subdag1
-            elif isinstance(position2, str):
-                base2._kwargs[position2] = subdag1
-            elif isinstance(position2, int):
-                base2._args[position2] = subdag1
-    return dag
