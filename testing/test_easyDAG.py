@@ -1,6 +1,6 @@
 # python -m pytest --cov=easyDAG
 from easyDAG import Step
-from easyDAG import InputVariable, Tokens
+from easyDAG import InputVariable, Tokens, simplify
 from easyDAG import do_eval, are_equal, do_eval_uncached, clear_cache_from_errors
 from easyDAG import unroll, reset_computation, replace_in_DAG
 from easyDAG import find_elements, get_free_variables, to_dict, from_dict
@@ -72,7 +72,7 @@ general_values_strategy = st.one_of(st.text(),
 
 numerical_value = st.one_of(st.floats(),
                             #st.complex_numbers(),
-                            st.integers(),
+                            st.integers(min_value=-2**10, max_value=2**10),
                             #st.decimals(),
                             #st.fractions(),
                             )
@@ -775,4 +775,23 @@ def test_CAS_disequalities(a):
     assert do_eval_uncached(a<8, a=6)
     assert do_eval_uncached(a<=8, a=6)
 
-
+def test_simplify_DAG():
+    a1 = Step('a')
+    a2 = Step('a')
+    b = Step('b')
+    c = Step('c')
+    d1 = Step('d')
+    d2 = Step('d')
+    
+    expr_1 = Step(d1, a1, b)
+    expr_2 = Step(d2, a2, b)
+    expr_3 = Step(lambda x, y: x*y, x=c, y=expr_2)
+    expr = expr_1/expr_3
+    
+    old_expr = deepcopy(expr)
+    new_expr = simplify(expr)
+    assert are_equal(new_expr, old_expr)
+    len_old = len({id(subdag) for subdag, *_ in unroll(old_expr)})
+    len_new = len({id(subdag) for subdag, *_ in unroll(expr)})
+    print(len_old, len_new)
+    assert len_old >= len_new

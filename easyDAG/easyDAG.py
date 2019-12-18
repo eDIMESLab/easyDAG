@@ -24,10 +24,19 @@ def do_eval_uncached(dag, **kwargs):
 
 def are_equal(obj1, obj2):
     method = '__equal__'
-    if not hasattr(obj1, method) or not hasattr(obj2, method):
+    obj1_has_equal = hasattr(obj1, method)
+    obj2_has_equal = hasattr(obj2, method)
+    if not obj1_has_equal and not obj2_has_equal:
         if isinstance(obj1, Exception) and isinstance(obj2, Exception):
             return repr(obj1)==repr(obj2)
         return obj1==obj2
+    
+    # one of the two is a step, the other is not
+    if obj1_has_equal and not obj2_has_equal:
+        return False
+    if obj2_has_equal and not obj1_has_equal:
+        return False
+    
     # implement the new class style defer of the check to the second object
     # if it is a subclass of the first one
     if issubclass(obj2.__class__, obj1.__class__):
@@ -410,3 +419,18 @@ def clear_cache_from_errors(dag, force=False):
         clear_cache_from_errors(value, force=True)
     return dag
 
+
+def simplify(dag):
+    for subdag1, base1, position1 in unroll(dag):
+        for subdag2, base2, position2 in unroll(dag):
+            if (base1 is None) or (base2 is None):
+                continue
+            if not are_equal(subdag1, subdag2):
+                continue
+            if position2 == Tokens.FUNCTION_IDX:
+                base2._function = subdag1
+            elif isinstance(position2, str):
+                base2._kwargs[position2] = subdag1
+            elif isinstance(position2, int):
+                base2._args[position2] = subdag1
+    return dag
