@@ -1,0 +1,7 @@
+*\__pycache__
+.coverage
+.cache
+.hypothesis
+easyDAG.egg-info
+htmlcov
+notebooks/.ipynb_checkpoints
