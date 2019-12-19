@@ -2,7 +2,7 @@
 from easyDAG import Step
 from easyDAG import InputVariable, Tokens, simplify
 from easyDAG import do_eval, are_equal, do_eval_uncached, clear_cache_from_errors
-from easyDAG import unroll, reset_computation, replace_in_DAG
+from easyDAG import reset_computation, replace_in_DAG
 from easyDAG import find_elements, get_free_variables, to_dict, from_dict
 from easyDAG import count_operations, multi_eval, variables, is_variable
 # %%
@@ -426,17 +426,17 @@ def test_find_subtrees(a, b, c, d):
 
 def test_unroll_contains_objects_simple_operations(a, b):
     expr = a + b
-    assert len(list(unroll(expr)))==3
+    assert len(list(expr))==3
     
 def test_unroll_contains_objects_generic_operations(a, b, c):
     expr = Step(a, b, c)
-    assert len(list(unroll(expr)))==4
+    assert len(list(expr))==4
     
     
 def test_simple_unroll(a, b, c, d):
     expr_base = Step(c, d)
     expr = Step(expr_base, x=a, y=b)
-    for subdag, basedag, position in unroll(expr):
+    for subdag, basedag, position in expr:
         assert isinstance(subdag, Step)
         if basedag is None:
             assert position is None
@@ -472,16 +472,16 @@ def test_deepcopy_cache_no_interaction(a):
     assert not is_variable(c)
     assert not is_variable(d)
     
-    for step, parent, position in unroll(b):
+    for step, parent, position in b:
         if not is_variable(step):
             assert step._last_result is Tokens.NO_PREVIOUS_RESULT
         
-    for step, parent, position in unroll(c):
+    for step, parent, position in c:
         if not is_variable(step):
             assert step._last_result is not Tokens.NO_PREVIOUS_RESULT
     assert c._last_result is res
     
-    for step, parent, position in unroll(d):
+    for step, parent, position in d:
         if not is_variable(step):
             assert step._last_result is not Tokens.NO_PREVIOUS_RESULT
     # can't test for equality, as there is no guarantee that the copied
@@ -798,8 +798,8 @@ def test_simplify_DAG():
     old_expr = deepcopy(expr)
     new_expr = simplify(expr)
     assert are_equal(new_expr, old_expr)
-    len_old = len({id(subdag) for subdag, *_ in unroll(old_expr)})
-    len_new = len({id(subdag) for subdag, *_ in unroll(expr)})
+    len_old = len({id(subdag) for subdag, *_ in old_expr})
+    len_new = len({id(subdag) for subdag, *_ in expr})
     assert len_old == 11
     assert len_new == 7
     assert len_old >= len_new

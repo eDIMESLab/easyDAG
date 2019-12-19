@@ -101,6 +101,10 @@ class RawStep:
                             " or a callable, {} found".format(function))
 
     def __equal__(self, other):
+        """check equality between the DAG and some other object
+        
+        is bound to the are_equal function as it is implemented as a protocol
+        """
         same_function = are_equal(self._function, other._function)
         if not same_function:
             return False
@@ -123,6 +127,7 @@ class RawStep:
         return True
 
     def __repr__(self):
+        """represents the object in a plain way"""
         s = "{}({}{}{})"
         cls_str = self.__class__.__qualname__
         f_str = repr(self._function)
@@ -136,9 +141,11 @@ class RawStep:
         return s.format(cls_str, f_str, arg_str, kwarg_str)
     
     def __copy__(self):
+        """returns a shallow copy of the DAG object"""
         return self.__class__(self._function, *(self._args), **(self._kwargs))
 
     def __deepcopy__(self, memo=None):
+        """returns a deep copy of the object"""
         f = deepcopy(self._function)
         a = deepcopy(self._args)
         k = deepcopy(self._kwargs)
@@ -149,7 +156,27 @@ class RawStep:
     def __bool__(self):
         raise NotImplementedError("DAGS don't have a defined truth value")
         
+    def __iter__(self):
+        """iterate over the DAG, its subDAGs and the respective elements
         
+        each iteration returns one element of the DAG, it's root DAG
+        and the relative position of the element in the root"""
+        yield (self, None, None)
+        arg = self._function
+        if is_dag(arg):
+            for res in arg:
+                res = res if res[1] is not None else (res[0], self, Tokens.FUNCTION_IDX)
+                yield res
+        for idx, arg in enumerate(self._args):
+            if is_dag(arg):
+                for res in arg:
+                    res = res if res[1] is not None else (res[0], self, idx)
+                    yield res
+        for key, arg in self._kwargs.items():
+            if is_dag(arg):
+                for res in arg:
+                    res = res if res[1] is not None else (res[0], self, key)
+                    yield res
 
 
 class Step(RawStep):
@@ -361,26 +388,10 @@ def from_dict(processed):
     result._last_result = c
     return result
 
-def unroll(step, _base=None):
-    """return the adjacency list of the DAG from the starting node"""
-    if isinstance(step, RawStep):
-        yield (step, _base, None)
-        for subdag, base, pos in unroll(step._function, step):
-            pos = pos if pos is not None else Tokens.FUNCTION_IDX
-            yield subdag, base, pos
-        for idx, a in enumerate(step._args):
-            for subdag, base, pos in unroll(a, step):
-                pos = pos if pos is not None else idx
-                yield subdag, base, pos 
-        for k, v in step._kwargs.items():
-            for subdag, base, pos in unroll(v, step):
-                pos = pos if pos is not None else k
-                yield subdag, base, pos 
-
 def reset_computation(*dags):
     """reset the computed value for all the nodes in the DAG"""
     for dag in dags:
-        for step, *_ in unroll(dag):
+        for step, *_ in dag:
             step._last_result = Tokens.NO_PREVIOUS_RESULT
     return dags
 
@@ -410,8 +421,8 @@ def replace_in_DAG(dag, to_find, to_replace):
     return dag
 
 def simplify(dag):
-    for subdag1, base1, position1 in unroll(dag):
-        for subdag2, base2, position2 in unroll(dag):
+    for subdag1, base1, position1 in dag:
+        for subdag2, base2, position2 in dag:
             if (base1 is None) or (base2 is None):
                 continue
             if not are_equal(subdag1, subdag2):
@@ -432,7 +443,7 @@ class OperationCount(NamedTuple):
     n_free_variables: int
     
 def count_operations(dag):
-    unrolled = [d for d, *_ in unroll(dag)]
+    unrolled = [d for d, *_ in dag]
     n_of_nodes = len(unrolled)
     unique_nodes = {id(d) for d in unrolled}
     n_of_operations = len(unique_nodes)
@@ -451,22 +462,13 @@ def count_operations(dag):
 
 def get_free_variables(dag):
     """given the DAG, search for all the variables and return their names"""
-    # results = [s for s, *t in unroll(step) if is_variable(s)]
-    # reduced = []
-    # for element in results:
-    #     for e in reduced:
-    #         if are_equal(element, e):
-    #             break
-    #     else:
-    #         reduced.append(element)
-    # return reduced
-    variables = {d._function for d, *_ in unroll(dag) if is_variable(d)}
+    variables = {d._function for d, *_ in dag if is_variable(d)}
     return variables
     
 
 def find_elements(obj, dag):
     """given the adjacency list of the DAG, return the positions of OBJ"""
-    for idx, (element, base, position) in enumerate(unroll(dag)):
+    for idx, (element, base, position) in enumerate(dag):
         if are_equal(obj, element):
             yield (base, position)
 
