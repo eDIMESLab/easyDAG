@@ -464,9 +464,9 @@ def get_free_variables(dag):
     return variables
     
 
-def find_elements(obj, results):
+def find_elements(obj, dag):
     """given the adjacency list of the DAG, return the positions of OBJ"""
-    for idx, el in enumerate(results):
-        (element, *_) = el
+    for idx, (element, base, position) in enumerate(unroll(dag)):
         if are_equal(obj, element):
-            yield idx
+            yield (base, position)
+

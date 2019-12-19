@@ -417,13 +417,11 @@ def test_resect_part_of_the_DAG(a, b, c, d):
 def test_find_subtrees(a, b, c, d):
     r = (a*b)*d + c*(a*b)
     
-    adj_list = list(unroll(r))
-    res = list(find_elements(a*b, adj_list))
+    res = list(find_elements(a*b, r))
     assert len(res)==2
     
     r2 = Step((lambda x, y: x+y), x=(a*b)*d, y=c*(a*b))
-    adj_list = list(unroll(r2))
-    res = list(find_elements(a*b, adj_list))
+    res = list(find_elements(a*b, r2))
     assert len(res)==2
 
 def test_unroll_contains_objects_simple_operations(a, b):
