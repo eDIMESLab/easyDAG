@@ -324,8 +324,8 @@ class Step(RawStep):
 #__ceil__(self) Implements behavior for math.ceil(), i.e., rounding up to the nearest integer.
 #__trunc__(self) Implements behavior for math.trunc(), i.e., truncating to an integral.
         
-def InputVariable(name, **kwargs):
-    return Step(name, **kwargs)
+# def InputVariable(name, **kwargs):
+#     return Step(name, **kwargs)
 
 def variables(*names, **kwargs):
     return [Step(name, **kwargs) for name in names]

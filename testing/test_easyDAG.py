@@ -1,6 +1,6 @@
 # python -m pytest --cov=easyDAG
 from easyDAG import Step
-from easyDAG import InputVariable, Tokens, simplify
+from easyDAG import Tokens, simplify
 from easyDAG import do_eval, are_equal, do_eval_uncached, clear_cache_from_errors
 from easyDAG import reset_computation, replace_in_DAG
 from easyDAG import find_elements, get_free_variables, to_dict, from_dict
@@ -41,19 +41,19 @@ Reduce = partial(Step, reduce)
 
 @pytest.fixture
 def a():
-    return InputVariable('a')
+    return Step('a')
 
 @pytest.fixture
 def b():
-    return InputVariable('b')
+    return Step('b')
 
 @pytest.fixture
 def c():
-    return InputVariable('c')
+    return Step('c')
 
 @pytest.fixture
 def d():
-    return InputVariable('d')
+    return Step('d')
 
 # %%
 unicode_categories = ('Nd', # Number, decimal digit
@@ -99,7 +99,7 @@ mathematical_functions = st.one_of(st.just(op.add),
 @given(name=names_strategy, value=general_values_strategy)
 @example(name='a', value=1)
 def test_get_variable_value(name, value):
-    variable = InputVariable(name)
+    variable = Step(name)
     values = {name: value} 
     assert do_eval(variable, **values) is value
 
@@ -122,8 +122,8 @@ def test_math_interface_hyp(name_a, name_b, value_a, value_b, op_math_function):
         is_nan_value = False
     assume(not is_nan_value)
     assume(name_a != name_b)
-    a = InputVariable(name_a)
-    b = InputVariable(name_b)
+    a = Step(name_a)
+    b = Step(name_b)
     value_dict = {name_a: value_a, name_b: value_b}
     expr_1 = Step(op_math_function, a, b)
     expr_2 = op_math_function(a, b)
@@ -173,8 +173,8 @@ def test_eval_curry_hyp(name_a, name_b, value_a, value_b, op_math_function):
         is_nan_value = False
     assume(not is_nan_value)
     assume(name_a != name_b)
-    a = InputVariable(name_a)
-    b = InputVariable(name_b)
+    a = Step(name_a)
+    b = Step(name_b)
     expr = Step(op_math_function, a, b)
     a_dict = {name_a: value_a}
     b_dict = {name_b: value_b}
@@ -214,9 +214,9 @@ def test_subclass_deferred_execution():
     assert do_eval(c, a=1, b=2) == 4 # a*2 + b, driven by b
 
 def test_basic_equality():
-    a = InputVariable('a')
-    b = InputVariable('b')
-    c = InputVariable('a')
+    a = Step('a')
+    b = Step('b')
+    c = Step('a')
 
     assert not are_equal(a, b)
     assert are_equal(a, c)
@@ -224,14 +224,14 @@ def test_basic_equality():
     assert are_equal(2*(a+b), 2*(c+b))
 
 def test_variable_identity_independence():
-    a = InputVariable('a')
-    b = InputVariable('a')
+    a = Step('a')
+    b = Step('a')
     assert do_eval(a*b, a=5, b=3) == 25
 
 def test_programmatically_create_model():
     def make_pipeline(name_a='a', name_b='b'):
-        a = InputVariable(name_a)
-        b = InputVariable(name_b)
+        a = Step(name_a)
+        b = Step(name_b)
         return a+b
 
     R = make_pipeline('c', 'd')
@@ -366,8 +366,8 @@ def test_CAS_power(a, b):
     assert do_eval(r2, a=2, b=3) == 9
 
 def test_returning_function():
-    a = InputVariable('base')
-    b = InputVariable('power')
+    a = Step('base')
+    b = Step('power')
 
     def make_power_function(pow):
         def make_power(base):
@@ -380,8 +380,8 @@ def test_returning_function():
 
 def test_unorthodox_variable_names():
     data = {'a': 1, '--b--': 2}
-    a = InputVariable('a')
-    b = InputVariable('--b--')
+    a = Step('a')
+    b = Step('--b--')
     assert do_eval(a+b, **data) == 3
 
 def test_caching_results(a):
@@ -461,7 +461,7 @@ def test_deepcopy_cache_no_interaction(a):
     def is_variable(s):
         return isinstance(s._function, str)
     
-    a = InputVariable('a')
+    a = Step('a')
     b = 1/a +1
     c = deepcopy(b)
     res = do_eval(c , a=0)
@@ -495,7 +495,7 @@ def test_deferred_equality_to_subclass():
         def __equal__(self, other):
             return True
         
-    a = InputVariable("a")
+    a = Step("a")
     b = Useless('b')
     
     assert are_equal(a, b) == True
@@ -503,13 +503,13 @@ def test_deferred_equality_to_subclass():
     
 
 def test_error_unclear_function_type():
-    a = InputVariable('a')
+    a = Step('a')
     b = Step(a, 1, 2)
     with pytest.raises(TypeError):
         do_eval(b, a=4)
 
 def test_fluent_interface():
-    a = InputVariable('a')
+    a = Step('a')
     expr = a.replace("hello", "ciao").replace("world", "mondo")
     res = do_eval(expr, a='hello world!')
     assert res == "ciao mondo!"
@@ -521,18 +521,18 @@ def test_dynamic_variable_generation_surprising():
     b becomes a variable and thus the result of the evaluation
     is a new pipeline.
     once that pipeline is evluated, the result is just the function,
-    as the parameters of the inputvariables are not used.
+    as the parameters of the Steps are not used.
     one can also do everything in one step to male it weirder.
     """
-    a = InputVariable('a')
+    a = Step('a')
     b= Step(a, 1, 2)
     res = do_eval(b, a="adios", adios=op.add)
     assert res(1, 2) == 3
 
 
 def test_basic_copy_shallow_and_deep():
-    b = InputVariable('b')
-    a = InputVariable('a', meta=b)
+    b = Step('b')
+    a = Step('a', meta=b)
     a1 = copy(a)
     a2 = deepcopy(a)
     assert are_equal(a, a1)
@@ -542,24 +542,24 @@ def test_basic_copy_shallow_and_deep():
     assert are_equal(a._kwargs['meta'], a2._kwargs['meta'])
 
 def test_equality_independent_key_ordering():
-    a1 = InputVariable('a', meta=1, type=int)
-    a2 = InputVariable('a', meta=1, type=int)
-    a3 = InputVariable('a', type=int, meta=1)
+    a1 = Step('a', meta=1, type=int)
+    a2 = Step('a', meta=1, type=int)
+    a3 = Step('a', type=int, meta=1)
     assert are_equal(a1, a2)
     assert are_equal(a1, a3)
 
 def test_equality_need_same_keys():
-    a1 = InputVariable('a', meta=1, type=int)
-    a4 = InputVariable('a', meta=1, type=int, time=0)
+    a1 = Step('a', meta=1, type=int)
+    a4 = Step('a', meta=1, type=int, time=0)
     assert not are_equal(a1, a4)
     
 def test_equality_values():
-    a1 = InputVariable('a', meta=1, type=int)
-    a2 = InputVariable('a', meta=2, type=float)
+    a1 = Step('a', meta=1, type=int)
+    a2 = Step('a', meta=2, type=float)
     assert not are_equal(a1, a2)
 
 def test_dag_processing_into_dict():
-    a = InputVariable('a')
+    a = Step('a')
     assert to_dict(a) == {Tokens.FUNCTION_IDX: 'a',
                           Tokens.CACHE_IDX: Tokens.NO_PREVIOUS_RESULT}
     b = a+2
@@ -581,14 +581,14 @@ def test_dag_processing_into_dict():
                    'b': 2}
 
 def test_from_dict():
-    a = InputVariable('a')
+    a = Step('a')
     b = 2**a + 1
     p = to_dict(b)
     e = from_dict(p)
     assert are_equal(e, b)
 
 def test_from_dict_with_dict_params():
-    a = InputVariable('a')
+    a = Step('a')
     b = Step(dict.get, {'dog': 1, 'cat': 2}, a)
     assert do_eval(b, a='cat') == 2
     p = to_dict(b)
@@ -603,8 +603,8 @@ def test_get_free_variables(a, b, c):
     assert free_vars == {'a', 'b', 'c'}
 
 def test_replace_in_dag():
-    a = InputVariable('a')
-    b = InputVariable('b')
+    a = Step('a')
+    b = Step('b')
     expr1 = 2**a + a*2 + 1
     expr2 = replace_in_DAG(deepcopy(expr1), a, b)
     res1 = do_eval(expr1, a=1, b=2)
@@ -622,8 +622,8 @@ def test_eval_uncached(a):
     assert do_eval_uncached(expr, a=3) == 7
 
 def test_clear_cache_from_errors():
-    a = InputVariable('a')
-    b = InputVariable('b')
+    a = Step('a')
+    b = Step('b')
     expr = 1/b + 1/a
     do_eval(expr, a=0, b=1)
     expected_1 = {Tokens.FUNCTION_IDX: op.add,
@@ -771,9 +771,9 @@ def test_matmul():
     v1 = Vector(1, 2)
     v2 = Vector(1, 2)
     assert v1@v2 == 5
-    a = InputVariable('a')
+    a = Step('a')
     assert do_eval(a @ v1, a=v2) == v1@v2
-    a = InputVariable('a')
+    a = Step('a')
     assert do_eval(v1 @ a, a=v2) == v1@v2
 
 def test_CAS_disequalities(a):
