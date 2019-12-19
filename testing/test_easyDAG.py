@@ -1,8 +1,8 @@
 # python -m pytest --cov=easyDAG
 from easyDAG import Step
 from easyDAG import Tokens, simplify
-from easyDAG import do_eval, are_equal, do_eval_uncached, clear_cache_from_errors
-from easyDAG import reset_computation, replace_in_DAG
+from easyDAG import do_eval, are_equal, do_eval_uncached, clear_cache
+from easyDAG import replace_in_DAG
 from easyDAG import find_elements, get_free_variables, to_dict, from_dict
 from easyDAG import count_operations, multi_eval, variables, is_variable
 # %%
@@ -394,7 +394,7 @@ def test_caching_results(a):
     s = Step(echo_increase, a)
     assert do_eval(s, a=1) == 2
     assert do_eval(s, a=2) == 2
-    reset_computation(s)
+    clear_cache(s, force=True)
     assert do_eval(s, a=2) == 3
     assert num_of_executions == 2
     
@@ -410,7 +410,7 @@ def test_resect_part_of_the_DAG(a, b, c, d):
         return tuple(obj)
         
     assert do_eval(r3, b=1) == 7
-    reset_computation(r3)
+    clear_cache(r3, force=True)
     r3._args[1] =  b*4
     assert do_eval(r3, b=1) == 8
     
@@ -645,7 +645,7 @@ def test_clear_cache_from_errors():
                   }
     assert are_equal(from_dict(expected_1), from_dict(expected_1))
     assert are_equal(expr, from_dict(expected_1))
-    clean_expr = clear_cache_from_errors(expr)
+    clean_expr = clear_cache(expr)
     expected_2 = {Tokens.FUNCTION_IDX: op.add,
                   Tokens.CACHE_IDX: Tokens.NO_PREVIOUS_RESULT,
                   0: {Tokens.FUNCTION_IDX: op.truediv,
@@ -668,7 +668,7 @@ def test_clear_cache_from_errors():
 def test_clear_cache_not_action_without_errors(a):
     expr = a+1
     res_1 = do_eval(expr, a=2)
-    clear_cache_from_errors(expr)
+    clear_cache(expr)
     assert expr._last_result is res_1
     
 
@@ -682,7 +682,7 @@ def test_clear_cache_from_errors_with_kwargs(a, b, c):
     pow = Step(partial_pow, p=b)
     expr = Step(sorted, a, key=pow) * (c+1)
     do_eval(expr, a=[1, 3, -2], b='2', c=1)
-    clear_cache_from_errors(expr)
+    clear_cache(expr)
     to_dict(expr)
     assert do_eval(expr, a=[1, 3, -2], b=2, c=1) == [1, -2, 3, 1, -2, 3]
 

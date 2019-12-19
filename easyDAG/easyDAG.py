@@ -341,7 +341,7 @@ def is_cached(dag):
     if is_dag(last_result):
         return True
     return  last_result != Tokens.NO_PREVIOUS_RESULT
-    
+
 
 # ██████  ██ ██████  ███████ ██      ██ ███    ██ ███████
 # ██   ██ ██ ██   ██ ██      ██      ██ ████   ██ ██
@@ -388,24 +388,17 @@ def from_dict(processed):
     result._last_result = c
     return result
 
-def reset_computation(*dags):
-    """reset the computed value for all the nodes in the DAG"""
-    for dag in dags:
-        for step, *_ in dag:
-            step._last_result = Tokens.NO_PREVIOUS_RESULT
-    return dags
-
-def clear_cache_from_errors(dag, force=False):
+def clear_cache(dag, force=False):
     if not is_dag(dag):
         return dag
     if not force and not isinstance(dag._last_result, Exception):
         return dag
     dag._last_result = Tokens.NO_PREVIOUS_RESULT
-    clear_cache_from_errors(dag._function, force=True)
+    clear_cache(dag._function, force=True)
     for arg in dag._args:
-        clear_cache_from_errors(arg, force=True)
+        clear_cache(arg, force=True)
     for value in dag._kwargs.values():
-        clear_cache_from_errors(value, force=True)
+        clear_cache(value, force=True)
     return dag
 
 def replace_in_DAG(dag, to_find, to_replace):
@@ -462,8 +455,7 @@ def count_operations(dag):
 
 def get_free_variables(dag):
     """given the DAG, search for all the variables and return their names"""
-    variables = {d._function for d, *_ in dag if is_variable(d)}
-    return variables
+    return {d._function for d, *_ in dag if is_variable(d)}
     
 
 def find_elements(obj, dag):
