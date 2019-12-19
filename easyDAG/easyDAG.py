@@ -22,6 +22,9 @@ def do_eval_uncached(dag, **kwargs):
     dag = deepcopy(dag)
     return do_eval(dag, **kwargs)
 
+def multi_eval(*objects, **kwargs):
+    return tuple(do_eval(obj, **kwargs) for obj in objects)
+
 def are_equal(obj1, obj2):
     method = '__equal__'
     obj1_has_equal = hasattr(obj1, method)
@@ -297,12 +300,14 @@ class Step(RawStep):
 def InputVariable(name, **kwargs):
     return Step(name, **kwargs)
 
+def variables(*names, **kwargs):
+    return [Step(name, **kwargs) for name in names]
 
 def is_dag(dag):
     return isinstance(dag, RawStep)
 
 def is_variable(dag):
-    return isinstance(dag._function, str)
+    return isinstance(dag, RawStep) and isinstance(dag._function, str)
 
 def is_cached(dag):
     last_result = dag._last_result
@@ -444,18 +449,20 @@ def count_operations(dag):
 
 # %%
 
-def get_free_variables(step):
-    """given the DAG, search for all the free variables"""
-    results = [s for s, *t in unroll(step) if is_variable(s)]
+def get_free_variables(dag):
+    """given the DAG, search for all the variables and return their names"""
+    # results = [s for s, *t in unroll(step) if is_variable(s)]
+    # reduced = []
+    # for element in results:
+    #     for e in reduced:
+    #         if are_equal(element, e):
+    #             break
+    #     else:
+    #         reduced.append(element)
+    # return reduced
+    variables = {d._function for d, *_ in unroll(dag) if is_variable(d)}
+    return variables
     
-    reduced = []
-    for element in results:
-        for e in reduced:
-            if are_equal(element, e):
-                break
-        else:
-            reduced.append(element)
-    return reduced
 
 def find_elements(obj, results):
     """given the adjacency list of the DAG, return the positions of OBJ"""

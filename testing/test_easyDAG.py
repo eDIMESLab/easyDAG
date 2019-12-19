@@ -4,7 +4,7 @@ from easyDAG import InputVariable, Tokens, simplify
 from easyDAG import do_eval, are_equal, do_eval_uncached, clear_cache_from_errors
 from easyDAG import unroll, reset_computation, replace_in_DAG
 from easyDAG import find_elements, get_free_variables, to_dict, from_dict
-from easyDAG import count_operations
+from easyDAG import count_operations, multi_eval, variables, is_variable
 # %%
 from functools import partial, reduce
 import operator as op
@@ -602,6 +602,7 @@ def test_get_free_variables(a, b, c):
     expr = a*c + c*b + a*2 +5
     free_vars = get_free_variables(expr)
     assert len(free_vars) == 3
+    assert free_vars == {'a', 'b', 'c'}
 
 def test_replace_in_dag():
     a = InputVariable('a')
@@ -817,3 +818,28 @@ def test_count_expressions():
     assert res.n_cached == 2
     assert res.n_variables == 3
     assert res.n_free_variables == 3
+
+def test_multi_eval(a, b):
+    def import_math():
+        import math as _math
+        return _math
+    math = Step(import_math)
+    def operation(x, y):
+        z = x**2 + y**2
+        sz = math.sqrt(z)
+        return x/sz, y/sz
+    xn, yn = operation(a, b)
+    xn_v, yn_v = multi_eval(xn, yn, a=3, b=4)
+    assert xn_v == 0.6
+    assert yn_v == 0.8
+    
+def test_multiple_variables():
+    a, b, c = variables('a', 'b', 'c', type=int)
+    assert are_equal(a, Step('a', type=int))
+    assert are_equal(b, Step('b', type=int))
+    assert are_equal(c, Step('c', type=int))
+    
+def test_is_variable(a, b):
+    assert is_variable(a)
+    assert not is_variable(a+b)
+    assert not is_variable(3)
