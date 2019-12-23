@@ -34,11 +34,10 @@ def are_equal(obj1, obj2):
             return repr(obj1)==repr(obj2)
         return obj1==obj2
     
-    # one of the two is a step, the other is not
     if obj1_has_equal and not obj2_has_equal:
-        return False
+        return getattr(obj1, method)(obj2)
     if obj2_has_equal and not obj1_has_equal:
-        return False
+        return getattr(obj2, method)(obj1)
     
     # implement the new class style defer of the check to the second object
     # if it is a subclass of the first one
@@ -105,6 +104,12 @@ class RawStep:
         
         is bound to the are_equal function as it is implemented as a protocol
         """
+        if not isinstance(other, RawStep):
+            try:
+                return other.__equal__(self)
+            except AttributeError:
+                return False
+                
         same_function = are_equal(self._function, other._function)
         if not same_function:
             return False
@@ -451,8 +456,6 @@ def count_operations(dag):
                           n_variables,
                           free_variables)
 
-# %%
-
 def get_free_variables(dag):
     """given the DAG, search for all the variables and return their names"""
     return {d._function for d, *_ in dag if is_variable(d)}
@@ -464,3 +467,22 @@ def find_elements(obj, dag):
         if are_equal(obj, element):
             yield (base, position)
 
+
+class Template:
+    def __init__(self, name):
+        self.name = name
+        self.meaning = Tokens.NO_PREVIOUS_RESULT
+                
+    def __equal__(self, other):
+        if are_equal(self.meaning, Tokens.NO_PREVIOUS_RESULT):
+            self.meaning = other
+            return True
+        else:
+            return are_equal(self.meaning, other)
+        
+    def __repr__(self):
+        return (f"{self.__class__.__qualname__}"
+                f"(name='{self.name}', {self.meaning})")
+    
+    def __add__(self, other):
+        return Step(op.add, self, other)

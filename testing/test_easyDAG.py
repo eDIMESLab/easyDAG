@@ -1,5 +1,5 @@
 # python -m pytest --cov=easyDAG
-from easyDAG import Step
+from easyDAG import Step, Template
 from easyDAG import Tokens, simplify
 from easyDAG import do_eval, are_equal, do_eval_uncached, clear_cache
 from easyDAG import replace_in_DAG
@@ -841,3 +841,86 @@ def test_is_variable(a, b):
     assert is_variable(a)
     assert not is_variable(a+b)
     assert not is_variable(3)
+    
+    
+def test_Template_basic():
+    v = Template('v')
+    assert are_equal(v, 1)
+    assert are_equal(v.meaning, 1)
+    assert repr(v) == "Template(name='v', 1)"
+    
+    
+def test_Template_in_step():
+    v = Template('v')
+    expr = Step(op.add, 1, 2)
+    test = Step(op.add, 1, v)
+    assert are_equal(test, expr)
+    assert are_equal(expr, test)
+    assert are_equal(v.meaning, 2)
+    
+def test_Template_in_step_repeated_false():
+    v = Template('v')
+    expr = Step(op.add, 1, 2)
+    test = Step(op.add, v, v)
+    assert not are_equal(test, expr)
+    assert not are_equal(expr, test)
+    assert are_equal(v.meaning, 1)
+    
+def test_Template_in_step_repeated_true():
+    v = Template('v')
+    expr = Step(op.add, 1, 1)
+    test = Step(op.add, v, v)
+    assert are_equal(test, expr)
+    assert are_equal(expr, test)
+    assert are_equal(v.meaning, 1)
+    
+def test_Template_in_step_with_input():
+    a = Step('a')
+    b = Step('b')
+    v = Template('v')
+    expr = Step(op.add, a, b)
+    test = Step(op.add, a, v)
+    assert are_equal(expr, test)
+    assert are_equal(test, expr)
+    assert are_equal(v.meaning, b)
+    
+def test_Template_in_step_with_input_whole_operations():
+    a = Step('a')
+    b = Step('b')
+    v = Template('v')
+    expr = Step(op.add, 1, a+b)
+    test = Step(op.add, 1, v)
+    assert are_equal(expr, test)
+    assert are_equal(test, expr)
+    assert are_equal(v.meaning, a+b)
+    
+    
+def test_Template_in_step_with_input_partial_operations():
+    a = Step('a')
+    b = Step('b')
+    v = Template('v')
+    expr = Step(op.add, 1, a+b)
+    test = Step(op.add, 1, a+v)
+    assert are_equal(expr, test)
+    assert are_equal(test, expr)
+    assert are_equal(v.meaning, b)
+    
+def test_Template_in_step_with_input_partial_operations_invert():
+    a = Step('a')
+    b = Step('b')
+    v = Template('v')
+    expr = Step(op.add, 1, a+b)
+    test = Step(op.add, 1, v+b)
+    assert are_equal(expr, test)
+    assert are_equal(test, expr)
+    assert are_equal(v.meaning, a)
+    
+def test_Template_in_step_with_input_False():
+    a = Step('a')
+    b = Step('b')
+    v = Template('v')
+    expr = Step(op.add, 1, a+b)
+    test = Step(op.add, 1, a*v)
+    assert not are_equal(expr, test)
+    assert not are_equal(test, expr)
+    assert are_equal(v.meaning, Tokens.NO_PREVIOUS_RESULT)
