@@ -336,7 +336,7 @@ def variables(*names, **kwargs):
     return [Step(name, **kwargs) for name in names]
 
 def is_dag(dag):
-    return isinstance(dag, RawStep)
+    return isinstance(dag, RawStep) or isinstance(dag, Template)
 
 def is_variable(dag):
     return isinstance(dag, RawStep) and isinstance(dag._function, str)
@@ -484,5 +484,11 @@ class Template:
         return (f"{self.__class__.__qualname__}"
                 f"(name='{self.name}', {self.meaning})")
     
+    def __iter__(self):
+        yield (self, None, None)
+    
     def __add__(self, other):
         return Step(op.add, self, other)
+    
+
+

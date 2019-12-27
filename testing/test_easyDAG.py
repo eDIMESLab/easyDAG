@@ -2,7 +2,7 @@
 from easyDAG import Step, Template
 from easyDAG import Tokens, simplify
 from easyDAG import do_eval, are_equal, do_eval_uncached, clear_cache
-from easyDAG import replace_in_DAG
+from easyDAG import replace_in_DAG, is_dag
 from easyDAG import find_elements, get_free_variables, to_dict, from_dict
 from easyDAG import count_operations, multi_eval, variables, is_variable
 # %%
@@ -924,3 +924,33 @@ def test_Template_in_step_with_input_False():
     assert not are_equal(expr, test)
     assert not are_equal(test, expr)
     assert are_equal(v.meaning, Tokens.NO_PREVIOUS_RESULT)
+
+def test_template_is_DAG():
+    v = Template('v')
+    assert is_dag(v)
+
+def test_multiple_templates():
+    a = Step('a')
+    b = Step('b')
+    v = Template('v')
+    t = Template('t')
+    expr = 1+a+b
+    test = v+a+t
+    assert are_equal(expr, test)
+    assert are_equal(v.meaning, 1)
+    assert are_equal(t.meaning, b)
+    
+def test_template_iterable():
+    v = Template('v')
+    assert list(v) == [(v, None, None)]
+    
+def test_iteration_dag_with_template():
+    a = Step('a')
+    v = Template('v')
+    
+    test = a+v
+    unroll = list(test)    
+    assert len(unroll)==3
+    assert unroll[-1] == (v, test, 1)
+    
+
