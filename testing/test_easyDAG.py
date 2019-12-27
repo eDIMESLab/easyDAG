@@ -2,7 +2,7 @@
 from easyDAG import Step, Template
 from easyDAG import Tokens, simplify
 from easyDAG import do_eval, are_equal, do_eval_uncached, clear_cache
-from easyDAG import replace_in_DAG, is_dag
+from easyDAG import replace_in_DAG, match, is_dag
 from easyDAG import find_elements, get_free_variables, to_dict, from_dict
 from easyDAG import count_operations, multi_eval, variables, is_variable
 # %%
@@ -953,4 +953,23 @@ def test_iteration_dag_with_template():
     assert len(unroll)==3
     assert unroll[-1] == (v, test, 1)
     
-
+def test_pattern_matching():
+    a = Step('a')
+    b = Step('b')
+    v = Template('v')
+    
+    expr = 2*(a+b)+3*(a+2*b)
+    test = a+v
+    assert not are_equal(expr, test)
+    
+    results = list(match(test, expr))
+    assert len(results)==2
+    assert are_equal(results[0][Tokens.FUNCTION_IDX][0], a+b)
+    assert are_equal(results[0][Tokens.FUNCTION_IDX][1], 2*(a+b))
+    assert are_equal(results[0][Tokens.FUNCTION_IDX][2], 1)
+    assert are_equal(results[0]['v'], b)
+    
+    assert are_equal(results[1][Tokens.FUNCTION_IDX][0], a+2*b)
+    assert are_equal(results[1][Tokens.FUNCTION_IDX][1], 3*(a+2*b))
+    assert are_equal(results[1][Tokens.FUNCTION_IDX][2], 1)
+    assert are_equal(results[1]['v'], 2*b)

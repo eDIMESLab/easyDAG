@@ -491,4 +491,17 @@ class Template:
         return Step(op.add, self, other)
     
 
+def match(pattern, expr):
+    templates = [e for e, *_ in pattern if isinstance(e, Template)]
+    for subexpr, base, loc in expr:
+        for template in templates:
+            template.meaning = Tokens.NO_PREVIOUS_RESULT
+            
+        do_match = are_equal(pattern, subexpr)
+        if not do_match:
+            continue
+        result = {Tokens.FUNCTION_IDX: (subexpr, base, loc)}
+        for template in templates:
+            result[template.name] = template.meaning
+        yield result
 
